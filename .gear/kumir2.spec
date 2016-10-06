@@ -8,10 +8,9 @@ Summary(ru_RU.UTF-8): Новая версия системы Кумир - про
 License: GPL
 Group: Education
 Url: http://lpm.org.ru/kumir
-Packager: Yekaterina Aleksanenkova <lex@altlinux.ru>
+Packager: Yekaterina Aleksanenkova <lex@altlinux.org>
 
-BuildPreReq: libqt4-devel gcc-c++ cmake python3 boost-devel
-Requires: libqt4-core
+BuildRequires: libqt4-devel gcc-c++ cmake python3 boost-devel python-modules-json
 
 Source: %name-%version.tar
 Patch: %name-%version-%release.patch
@@ -39,15 +38,12 @@ This is a second generation of well-known Kumir system.
 sed -i "s/^Categories=.*$/Categories=Education;Qt;ComputerScience;/" *.desktop
 
 %build
-mkdir build
-cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr ..
-make
+%cmake
+%cmake_build
 
 %install
-cd build
 # make install
-%make_install DESTDIR=%buildroot install
+%cmakeinstall_std
 
 %files
 %_bindir/*
@@ -59,7 +55,7 @@ cd build
 
 %changelog
 * Mon Oct 03 2016 Yekaterina Aleksanenkova <lex@altlinux.org> 2.1.0-alt1
-- Stable release
+- Stable release.
 
 * Sun Jun 15 2014 Denis Kirienko <dk@altlinux.org> 2.1.0-alt0.beta5
 - Version 2.1.0-beta5
