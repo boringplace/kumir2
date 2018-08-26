@@ -1,0 +1,3 @@
+tar: v@version@:. name=@name@-@version@
+diff: v@version@:. . name=@name@-@version@-@release@.patch
+spec: .gear/kumir2.spec
