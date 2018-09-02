@@ -1,6 +1,6 @@
-Name: kumir2
-Version: 2.1.0
-Release: alt1
+Name: kumir2-devel
+Version: 2.1.0rcX
+Release: alt1%ubt
 
 Summary: New version of Kumir - simple programming language and IDE for teaching programming
 Summary(ru_RU.UTF-8): Новая версия системы Кумир - простого учебного языка программирования и среды разработки
@@ -10,10 +10,12 @@ Group: Education
 Url: http://lpm.org.ru/kumir
 Packager: Yekaterina Aleksanenkova <lex@altlinux.org>
 
-BuildRequires: libqt4-devel gcc-c++ cmake python3 boost-devel python-modules-json
+BuildRequires(pre): rpm-build-ubt
+BuildRequires: qt5-base-devel qt5-svg-devel qt5-x11extras-devel qt5-script-devel
+BuildRequires: gcc-c++ cmake python3 boost-devel python-modules-json
 
 Source: %name-%version.tar
-Patch: %name-%version-%release.patch
+Patch: %name-%version-alt.patch
 
 %description
 Implementation of Kumir programming language, designed by academician
@@ -38,7 +40,7 @@ This is a second generation of well-known Kumir system.
 sed -i "s/^Categories=.*$/Categories=Education;Qt;ComputerScience;/" *.desktop
 
 %build
-%cmake
+%cmake -DUSE_QT=5
 %cmake_build
 
 %install
@@ -54,6 +56,10 @@ sed -i "s/^Categories=.*$/Categories=Education;Qt;ComputerScience;/" *.desktop
 %_iconsdir/*/*/*/*
 
 %changelog
+* Fri Aug 31 2018 Evgeny Sinelnikov <sin@altlinux.org> 2.1.0rcX-alt1%ubt
+- Build unstable master branch as kumir-devel with ubt macros
+- Version: master-1103a3358c1dc1742052316648a9b5783a155d4e-20180826
+
 * Mon Oct 03 2016 Yekaterina Aleksanenkova <lex@altlinux.org> 2.1.0-alt1
 - Stable release.
 
