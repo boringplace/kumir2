@@ -1,21 +1,28 @@
-Name: kumir2-devel
-Version: 2.1.0rcX
-Release: alt1%ubt
+%define branch master
+%define git_hash f6cf2bf21cd8244700b505d3a70967f4e2d8c44b
 
-Summary: New version of Kumir - simple programming language and IDE for teaching programming
-Summary(ru_RU.UTF-8): Новая версия системы Кумир - простого учебного языка программирования и среды разработки
+%define oname kumir2
+
+Name: kumir2x
+Version: 2.1.0rcX
+Release: alt2%ubt
+
+Summary: Development version of Kumir - simple programming language and IDE for teaching programming
+Summary(ru_RU.UTF-8): Разрабатываемая версия системы Кумир - простого учебного языка программирования и среды разработки
 
 License: GPL
 Group: Education
-Url: http://lpm.org.ru/kumir
-Packager: Yekaterina Aleksanenkova <lex@altlinux.org>
+Url: https://github.com/mastersin/kumir2
+Packager: Evgeny Sinelnikov <sin@altlinux.org>
 
 BuildRequires(pre): rpm-build-ubt
 BuildRequires: qt5-base-devel qt5-svg-devel qt5-x11extras-devel qt5-script-devel
 BuildRequires: gcc-c++ cmake python3 boost-devel python-modules-json
 
-Source: %name-%version.tar
-Patch: %name-%version-alt.patch
+Conflicts: kumir2
+
+Source: %oname-%version.tar
+Patch: %oname-%version-alt.patch
 
 %description
 Implementation of Kumir programming language, designed by academician
@@ -34,13 +41,24 @@ This is a second generation of well-known Kumir system.
 
 Пакет kumir2 содержит новую реализацию системы Кумир.
 
+%package devel
+Summary:   Header files and libraries for kumir2
+Group:     Development/C++
+Requires:  %name = %version-%release
+
+%description
+This is development files of well-known Kumir system.
+
+%description devel -l ru_RU.UTF-8
+Пакет %name-devel содержит файлы для отладки и разработки системы Кумир.
+
 %prep
-%setup
+%setup -n %oname-%version
 %patch -p1
 sed -i "s/^Categories=.*$/Categories=Education;Qt;ComputerScience;/" *.desktop
 
 %build
-%cmake -DUSE_QT=5
+%cmake -DUSE_QT=5 -DKUMIR2_DISABLED_SUBDIRS=""
 %cmake_build
 
 %install
@@ -49,13 +67,21 @@ sed -i "s/^Categories=.*$/Categories=Education;Qt;ComputerScience;/" *.desktop
 
 %files
 %_bindir/*
-%_libdir/%name
-%_datadir/%name
+%_libdir/%oname
+%_datadir/%oname
 %_datadir/mime/packages/*.xml
 %_desktopdir/*
 %_iconsdir/*/*/*/*
 
+%files devel
+%_includedir/*
+%_libdir/cmake/*
+
 %changelog
+* %(LC_TIME=C date "+%%a %%b %%d %%Y") %{?package_signer:%package_signer}%{!?package_signer:%packager} %version-%release
+- Build unstable master branch as kumir-devel with ubt macros
+- Version: %{branch}-%{git_hash}-%(LC_TIME=C date "+%%Y%%m%%d")
+
 * Fri Aug 31 2018 Evgeny Sinelnikov <sin@altlinux.org> 2.1.0rcX-alt1%ubt
 - Build unstable master branch as kumir-devel with ubt macros
 - Version: master-1103a3358c1dc1742052316648a9b5783a155d4e-20180826
