@@ -64,12 +64,13 @@ TOP_LEVEL_DIR = os.getcwd()
 def get_version_information():
     assert isinstance(TOP_LEVEL_DIR, str)
     result = {
-        "taggedRelease": True,
+        "taggedRelease": False,
         "version": None,
         "hash": None,
         "branch": None,
-        "date": None
+        "date": get_date()
     }
+
     if os.path.exists(TOP_LEVEL_DIR + os.path.sep + ".git"):
         try:
             version_info = subprocess.check_output(
@@ -77,31 +78,52 @@ def get_version_information():
                 shell=True,
                 stderr=subprocess.PIPE
             ).strip()
+            result["taggedRelease"] = True
             result["version"] = to_str(version_info)
         except subprocess.CalledProcessError:
-            result["taggedRelease"] = False
+            pass
+
+        if result["version"]:
+            return result
+
+        branch_name = ""
+        try:
             branch_name = to_str(subprocess.check_output(
                 "git rev-parse --abbrev-ref HEAD",
                 shell=True
-            ).strip())
-            result["branch"] = branch_name
-            git_hash = to_str(subprocess.check_output(
-                "git --no-pager log -1 --pretty=format:%H",
+            )).strip()
+        except subprocess.CalledProcessError:
+            pass
+        if branch_name == "HEAD": # detached HEAD?
+            branch_name = os.environ.get("CI_COMMIT_REF_NAME", "").strip()
+        if not branch_name:
+            branch_name = "NONE"
+
+        hash_tag = ""
+        try:
+            hash_tag = to_str(subprocess.check_output(
+                "git rev-parse --short=12 --verify HEAD",
                 shell=True
-            ).strip())
-            result["hash"] = git_hash
-            result["date"] = get_date()
+            )).strip()
+        except subprocess.CalledProcessError:
+            pass
+        if not hash_tag:
+            hash_tag = os.environ.get("CI_COMMIT_SHA", "").strip()
+        if not hash_tag:
+            hash_tag = "0000000000000000000000000000000000000000"
+
+        result["taggedRelease"] = False
+        result["branch"] = branch_name
+        result["hash"] = hash_tag
+
     else:
         dir_name = os.path.basename(TOP_LEVEL_DIR)
         match = re.match(r"kumir2-(.+)", dir_name)
         version_info = match.group(1)
         if version_info.startswith("2"):
             result["version"] = version_info
-        else:
-            result["taggedRelease"] = False
-            result["date"] = get_date()
-    if not result["taggedRelease"] and result["branch"]=="HEAD":
-        result["branch"] = "master"  # fix GitLab naming bug
+            result["taggedRelease"] = True
+
     return result
 
 
