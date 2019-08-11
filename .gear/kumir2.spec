@@ -1,11 +1,11 @@
 %define branch master
-%define git_hash 8f8787c7f9dc17936d2ce85d2f8b6ea9320a8ad6
+%define git_hash 0d1c303eab080d67492ad0f9b14776036b59b9ef
 
 %define oname kumir2
 
 Name: kumir2x
 Version: 2.1.0rcX
-Release: alt3
+Release: alt4
 
 Summary: Development version of Kumir - simple programming language and IDE for teaching programming
 Summary(ru_RU.UTF-8): Разрабатываемая версия системы Кумир - простого учебного языка программирования и среды разработки
