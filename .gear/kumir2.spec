@@ -58,7 +58,7 @@ This is development files of well-known Kumir system.
 sed -i "s/^Categories=.*$/Categories=Education;Qt;ComputerScience;/" *.desktop
 
 %build
-%cmake -DUSE_QT=5 -DKUMIR2_DISABLED_SUBDIRS=""
+%cmake -DUSE_QT=5 -DKUMIR2_DISABLED_SUBDIRS="" -DKUMIR2_ALL_TOOLS=ON
 %cmake_build
 
 %install
