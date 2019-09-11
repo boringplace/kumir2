@@ -14,6 +14,7 @@ endif(NOT APPLE)
 add_opt_subdirectory(kumir2-checkcourse)
 add_opt_subdirectory(kumir2-bc)
 add_opt_subdirectory(kumir2-xrun)
+add_opt_subdirectory(kumir2-robots)
 
 # kumir2-llvmc is optional in case if LLVM libraries present
 #if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kumir2-llvmc")
