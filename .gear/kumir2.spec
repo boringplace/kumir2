@@ -3,9 +3,9 @@
 
 %define oname kumir2
 
-Name: kumir2x
-Version: 2.1.0rcX
-Release: alt4
+Name: kumir2-robots
+Version: 2.1.0
+Release: alt1
 
 Summary: Development version of Kumir - simple programming language and IDE for teaching programming
 Summary(ru_RU.UTF-8): Разрабатываемая версия системы Кумир - простого учебного языка программирования и среды разработки
@@ -79,7 +79,7 @@ sed -i "s/^Categories=.*$/Categories=Education;Qt;ComputerScience;/" *.desktop
 
 %changelog
 * %(LC_TIME=C date "+%%a %%b %%d %%Y") %{?package_signer:%package_signer}%{!?package_signer:%packager} %version-%release
-- Build unstable master branch as kumir-devel with ubt macros
+- Build unstable %branch branch as %name
 - Version: %{branch}-%{git_hash}-%(LC_TIME=C date "+%%Y%%m%%d")
 
 * Fri Aug 31 2018 Evgeny Sinelnikov <sin@altlinux.org> 2.1.0rcX-alt1%ubt
