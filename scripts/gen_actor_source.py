@@ -166,6 +166,7 @@ import string
 import os
 import inspect
 from _ast import mod
+from io import open
 
 
 def string_join(lines, sep):
@@ -1012,27 +1013,16 @@ class Module:
         :rtype:             Module
         :return:            Kumir module object
         """
-        f = open(file_name, 'r', encoding="utf-8")
-        data = json.load(f, encoding="utf-8")
-        f.close()
-        absolute_path = os.path.abspath(file_name)
-        module_dir = os.path.dirname(absolute_path)
-        result = Module(module_dir, os.path.split(file_name)[1], data)
-        return result
-
-    @classmethod
-    def create(cls, file_name):
-        """
-        Create empty module definition as JSON file
-
-        :type   file_name:  unicode
-        :param  file_name:  a file name to read from
-        :rtype:             Module
-        :return:            Kumir module object
-        """
-        data = json.loads("{}")
-        absolute_path = os.path.abspath(file_name)
-        module_dir = os.path.dirname(absolute_path)
+        if os.path.exists(file_name):
+            f = open(file_name, 'r', encoding="utf-8")
+            data = json.load(f, encoding="utf-8")
+            f.close()
+        else:
+            data = json.loads("{}")
+            data["name"] = os.path.basename(file_name)
+            data["methods"] = []
+        file_dir = os.path.dirname(file_name)
+        module_dir = os.path.abspath(file_dir)
         result = Module(module_dir, os.path.split(file_name)[1], data)
         return result
 
