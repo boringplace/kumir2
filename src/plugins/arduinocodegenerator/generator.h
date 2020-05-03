@@ -1,5 +1,5 @@
-#ifndef KUMIRCODEGENERATOR_GENERATOR_H
-#define KUMIRCODEGENERATOR_GENERATOR_H
+#ifndef ARDUINOCODEGENERATOR_GENERATOR_H
+#define ARDUINOCODEGENERATOR_GENERATOR_H
 
 #include <QtCore>
 
@@ -22,7 +22,7 @@ namespace AST {
 struct Lexem;
 }
 
-namespace KumirCodeGenerator {
+namespace ArduinoCodeGenerator {
 
 typedef Shared::GeneratorInterface::DebugLevel DebugLevel;
 struct ConstValue {
@@ -106,6 +106,6 @@ private:
 
 };
 
-} // namespace KumirCodeGenerator
+} // namespace ArduinoCodeGenerator
 
-#endif // KUMIRCODEGENERATOR_GENERATOR_H
+#endif // ARDUINOCODEGENERATOR_GENERATOR_H

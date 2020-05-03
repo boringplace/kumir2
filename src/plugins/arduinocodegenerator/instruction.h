@@ -3,7 +3,7 @@
 
 #include <QtCore>
 
-namespace BytecodeGenerator {
+namespace ArduinoGenerator {
 
 enum InstructionType {
     Null        = 0x0000,

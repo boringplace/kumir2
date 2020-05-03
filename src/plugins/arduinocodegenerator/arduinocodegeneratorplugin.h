@@ -1,5 +1,5 @@
-#ifndef KUMIRCODEGENERATORPLUGIN_H
-#define KUMIRCODEGENERATORPLUGIN_H
+#ifndef ARDUINOCODEGENERATORPLUGIN_H
+#define ARDUINOCODEGENERATORPLUGIN_H
 
 #include <kumir2-libs/extensionsystem/kplugin.h>
 #include <kumir2/generatorinterface.h>
@@ -9,20 +9,20 @@
 
 using namespace Shared;
 
-namespace KumirCodeGenerator {
+namespace ArduinoCodeGenerator {
 
-class KumirCodeGeneratorPlugin
+class ArduinoCodeGeneratorPlugin
         : public ExtensionSystem::KPlugin
         , public GeneratorInterface
 {
     Q_OBJECT
 #if QT_VERSION >= 0x050000
-    Q_PLUGIN_METADATA(IID "kumir2.KumirCodeGenerator")
+    Q_PLUGIN_METADATA(IID "kumir2.ArduinoCodeGenerator")
 #endif
     Q_INTERFACES(Shared::GeneratorInterface)
 
 public:
-    KumirCodeGeneratorPlugin();
+    ArduinoCodeGeneratorPlugin();
 
     QList<ExtensionSystem::CommandLineParameter> acceptableCommandLineParameters() const;
 
@@ -55,4 +55,4 @@ private:
 
 }
 
-#endif // KUMIRCODEGENERATORPLUGIN_H
+#endif // ARDUINOCODEGENERATORPLUGIN_H

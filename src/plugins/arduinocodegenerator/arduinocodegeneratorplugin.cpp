@@ -5,16 +5,15 @@
 #include <kumir2-libs/vm/variant.hpp>
 #include <kumir2-libs/vm/vm_bytecode.hpp>
 #include "generator.h"
-#include "kumircodegeneratorplugin.h"
+#include "arduinocodegeneratorplugin.h"
 #include <kumir2-libs/extensionsystem/pluginmanager.h>
 
-using namespace KumirCodeGenerator;
+using namespace ArduinoCodeGenerator;
 using namespace Bytecode;
 
-static const QString MIME_BYTECODE_BINARY   = QString::fromLatin1("executable/kumir2-bytecode");
-static const QString MIME_BYTECODE_TEXT     = QString::fromLatin1("text/plain");
+static const QString MIME_ARDUINO_C_SOURCE = QString::fromLatin1("text/plain");
 
-KumirCodeGeneratorPlugin::KumirCodeGeneratorPlugin()
+ArduinoCodeGeneratorPlugin::ArduinoCodeGeneratorPlugin()
     : KPlugin()
     , d(new Generator(this))
     , textMode_(false)
@@ -22,7 +21,7 @@ KumirCodeGeneratorPlugin::KumirCodeGeneratorPlugin()
 }
 
 QList<ExtensionSystem::CommandLineParameter>
-KumirCodeGeneratorPlugin::acceptableCommandLineParameters() const
+ArduinoCodeGeneratorPlugin::acceptableCommandLineParameters() const
 {
     using ExtensionSystem::CommandLineParameter;
     QList<CommandLineParameter> result;
@@ -40,7 +39,7 @@ KumirCodeGeneratorPlugin::acceptableCommandLineParameters() const
     return result;
 }
 
-QString KumirCodeGeneratorPlugin::initialize(const QStringList &/*configurationArguments*/,
+QString ArduinoCodeGeneratorPlugin::initialize(const QStringList &/*configurationArguments*/,
                                              const ExtensionSystem::CommandLine &runtimeArguments)
 {    
     textMode_ = runtimeArguments.hasFlag('s');
@@ -55,34 +54,34 @@ QString KumirCodeGeneratorPlugin::initialize(const QStringList &/*configurationA
     return QString();
 }
 
-void KumirCodeGeneratorPlugin::setOutputToText(bool flag)
+void ArduinoCodeGeneratorPlugin::setOutputToText(bool flag)
 {
     textMode_ = false;
 }
 
-void KumirCodeGeneratorPlugin::createPluginSpec()
+void ArduinoCodeGeneratorPlugin::createPluginSpec()
 {
-    _pluginSpec.name = "KumirCodeGenerator";
+    _pluginSpec.name = "ArduinoCodeGenerator";
     _pluginSpec.provides.append("Generator");
     _pluginSpec.gui = false;
 }
 
-void KumirCodeGeneratorPlugin::setDebugLevel(DebugLevel debugLevel)
+void ArduinoCodeGeneratorPlugin::setDebugLevel(DebugLevel debugLevel)
 {
     d->setDebugLevel(debugLevel);
 }
 
-void KumirCodeGeneratorPlugin::start()
+void ArduinoCodeGeneratorPlugin::start()
 {
 
 }
 
-void KumirCodeGeneratorPlugin::stop()
+void ArduinoCodeGeneratorPlugin::stop()
 {
 
 }
 
-void KumirCodeGeneratorPlugin::generateExecutable(
+void ArduinoCodeGeneratorPlugin::generateExecutable(
         const AST::DataPtr tree,
         QByteArray & out,
         QString & mimeType,
@@ -134,27 +133,17 @@ void KumirCodeGeneratorPlugin::generateExecutable(
     data.versionMin = 0;
     data.versionRel = 90;
     std::list<char> buffer;
-    if (textMode_) {
-        std::ostringstream stream;
-        Bytecode::bytecodeToTextStream(stream, data);
-        const std::string text = stream.str();
-        out = QByteArray(text.c_str(), text.size());
-        mimeType = MIME_BYTECODE_TEXT;
-        fileSuffix = ".kod.txt";
-        qDebug() << QString::fromLatin1(out);
-    }
-    else {
-        out.clear();
-        Bytecode::bytecodeToDataStream(buffer, data);
-        for (std::list<char>::const_iterator it=buffer.begin(); it!=buffer.end(); ++it) {
-            out.push_back(*it);
-        }
-        mimeType = MIME_BYTECODE_BINARY;
-        fileSuffix = ".kod";
-    }
+
+    std::ostringstream stream;
+    Bytecode::bytecodeToTextStream(stream, data);
+    const std::string text = stream.str();
+    out = QByteArray(text.c_str(), text.size());
+    mimeType = MIME_ARDUINO_C_SOURCE;
+    fileSuffix = ".kumir.c";
+    qDebug() << QString::fromLatin1(out);
 }
 
 
 #if QT_VERSION < 0x050000
-Q_EXPORT_PLUGIN(KumirCodeGeneratorPlugin)
+Q_EXPORT_PLUGIN(ArduinoCodeGeneratorPlugin)
 #endif

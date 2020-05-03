@@ -5,7 +5,7 @@
 #include <kumir2/actorinterface.h>
 #include <kumir2-libs/dataformats/lexem.h>
 
-namespace KumirCodeGenerator {
+namespace ArduinoCodeGenerator {
     
 using namespace Shared;
 
