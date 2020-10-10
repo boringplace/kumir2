@@ -10,11 +10,11 @@
 #include <kumir2-libs/errormessages/errormessages.h>
 #include <kumir2/generatorinterface.h>
 #include <kumir2-libs/vm/vm_enums.h>
-#include <kumir2-libs/vm/vm_instruction.hpp>
+#include "arduino_instruction.hpp"
 
 
 
-namespace Bytecode {
+namespace Arduino {
 struct Data;
 }
 
@@ -52,13 +52,13 @@ class Generator : public QObject
     Q_OBJECT
 public:
     explicit Generator(QObject *parent = 0);
-    void reset(const AST::DataPtr ast, Bytecode::Data * bc);
+    void reset(const AST::DataPtr ast, Arduino::Data * bc);
     void addModule(const AST::ModulePtr  mod);
     void generateConstantTable();
     void generateExternTable();
     void setDebugLevel(DebugLevel debugLevel);
 private:
-    QList<Bytecode::Instruction> makeLineInstructions(const QList<AST::LexemPtr> & lexems) const;
+    QList<Arduino::Instruction> makeLineInstructions(const QList<AST::LexemPtr> & lexems) const;
     quint16 constantValue(Bytecode::ValueType type, quint8 dimension, const QVariant & value,
                           const QString & recordModule, const QString & recordClass
                           );
@@ -69,41 +69,40 @@ private:
     void addFunction(int id, int moduleId, Bytecode::ElemType type, const AST::ModulePtr  mod, const AST::AlgorithmPtr  alg);
     void addInputArgumentsMainAlgorhitm(int moduleId, int algorhitmId, const AST::ModulePtr  mod, const AST::AlgorithmPtr  alg);
 
-    QList<Bytecode::Instruction> instructions(
+    QList<Arduino::Instruction> instructions(
         int modId, int algId, int level,
         const QList<AST::StatementPtr> & statements);
 
-    static void shiftInstructions(QList<Bytecode::Instruction> &instrs, int offset);
-    static void setBreakAddress(QList<Bytecode::Instruction> &instrs, int level, int address);
+    static void shiftInstructions(QList<Arduino::Instruction> &instrs, int offset);
+    static void setBreakAddress(QList<Arduino::Instruction> &instrs, int level, int address);
 
-    void ERRORR(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void ASSIGN(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void ASSERT(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void PAUSE_STOP(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void INIT(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void CALL_SPECIAL(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void LOOP(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void IFTHENELSE(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void SWITCHCASEELSE(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
-    void BREAK(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result);
+    void ERRORR(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void ASSIGN(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void ASSERT(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void PAUSE_STOP(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void INIT(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void CALL_SPECIAL(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void LOOP(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void IFTHENELSE(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void SWITCHCASEELSE(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
+    void BREAK(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result);
 
-    QList<Bytecode::Instruction> calculate(int modId, int algId, int level, const AST::ExpressionPtr st);
+    QList<Arduino::Instruction> calculate(int modId, int algId, int level, const AST::ExpressionPtr st);
 
-    void findVariable(int modId, int algId, const AST::VariablePtr  var, Bytecode::VariableScope & scope, quint16 & id) const;
+    void findVariable(int modId, int algId, const AST::VariablePtr  var, Arduino::VariableScope & scope, quint16 & id) const;
     static const AST::VariablePtr  returnValue(const AST::AlgorithmPtr  alg);
     void findFunction(const AST::AlgorithmPtr  alg, quint8 & module, quint16 & id) ;
 
 
     static QList<Bytecode::ValueType> valueType(const AST::Type & t);
     static Bytecode::ValueKind valueKind(AST::VariableAccessType t);
-    static Bytecode::InstructionType operation(AST::ExpressionOperator op);
+    static Arduino::InstructionType operation(AST::ExpressionOperator op);
 
     AST::DataPtr ast_;
-    Bytecode::Data * byteCode_;
+    Arduino::Data * byteCode_;
     QList< ConstValue > constants_;
     QList< QPair<quint8,quint16> > externs_;
     DebugLevel debugLevel_;
-
 };
 
 } // namespace ArduinoCodeGenerator

@@ -1,12 +1,15 @@
 #include "generator.h"
 #include <kumir2-libs/vm/vm_tableelem.hpp>
-#include <kumir2-libs/vm/vm.hpp>
+//include <kumir2-libs/vm/vm.hpp>
 #include <kumir2-libs/extensionsystem/pluginmanager.h>
 #include <kumir2/actorinterface.h>
 #include <kumir2-libs/dataformats/lexem.h>
 
+#include "arduino_data.hpp"
+#include <kumir2-libs/vm/vm_enums.h>
+
 namespace ArduinoCodeGenerator {
-    
+
 using namespace Shared;
 
 template <typename T> std::vector<T>& operator<<(std::vector<T> & vec, const T & value)
@@ -23,12 +26,11 @@ template <typename T> std::deque<T>& operator<<(std::deque<T> & vec, const T & v
 }
 
 
-
 Generator::Generator(QObject *parent)
     : QObject(parent)
     , byteCode_(nullptr)
     , debugLevel_(Shared::GeneratorInterface::LinesAndVariables)
-{   
+{
 }
 
 void Generator::setDebugLevel(DebugLevel debugLevel)
@@ -36,7 +38,7 @@ void Generator::setDebugLevel(DebugLevel debugLevel)
     debugLevel_ = debugLevel;
 }
 
-void Generator::reset(const AST::DataPtr ast, Bytecode::Data *bc)
+void Generator::reset(const AST::DataPtr ast, Arduino::Data *bc)
 {
     ast_ = ast;
     byteCode_ = bc;
@@ -114,9 +116,9 @@ static VM::AnyValue makeAnyValue(const QVariant & val
     return result;
 }
 
-static Bytecode::TableElem makeConstant(const ConstValue & val)
+static Arduino::TableElem makeConstant(const ConstValue & val)
 {
-    Bytecode::TableElem e;
+    Arduino::TableElem e;
     e.type = Bytecode::EL_CONST;
     e.vtype = val.baseType.toStdList();
     e.dimension = val.dimension;
@@ -234,7 +236,7 @@ void Generator::generateConstantTable()
 {
     for (int i=constants_.size()-1; i>=0; i--) {
         const ConstValue cons = constants_[i];
-        Bytecode::TableElem e = makeConstant(cons);
+        Arduino::TableElem e = makeConstant(cons);
         e.id = i;
         byteCode_->d.push_front(e);
     }
@@ -261,13 +263,13 @@ static QString typeToSignature(const AST::Type & t) {
     else if (t.kind == AST::TypeInteger)
         result = "int";
     else if (t.kind == AST::TypeReal)
-        result = "real";
+        result = "float";
     else if (t.kind == AST::TypeCharect)
         result = "char";
     else if (t.kind == AST::TypeString)
-        result = "string";
+        result = "String";
     else if (t.kind == AST::TypeUser) {
-        result = "record{";
+        result = "struct {";
         for (int i=0; i<t.userTypeFields.size(); i++) {
             if (i > 0)
                 result += ";";
@@ -310,7 +312,7 @@ void Generator::generateExternTable()
     QSet<AST::ModulePtr> modulesImplicitlyImported;
     for (int i=externs_.size()-1; i>=0; i--) {
         QPair<quint8, quint16> ext = externs_[i];
-        Bytecode::TableElem e;
+        Arduino::TableElem e;
         e.type = Bytecode::EL_EXTERN;
         e.module = ext.first;
         const AST::ModulePtr  mod = ast_->modules[ext.first];
@@ -374,7 +376,7 @@ void Generator::generateExternTable()
         }
     }
     foreach (AST::ModulePtr module, modulesExplicitlyImported - modulesImplicitlyImported) {
-        Bytecode::TableElem e;
+        Arduino::TableElem e;
         e.type = Bytecode::EL_EXTERN_INIT;
         e.module = 0xFF;
         e.algId = e.id = 0xFFFF;
@@ -438,38 +440,38 @@ Bytecode::ValueKind Generator::valueKind(AST::VariableAccessType t)
         return Bytecode::VK_Plain;
 }
 
-Bytecode::InstructionType Generator::operation(AST::ExpressionOperator op)
+Arduino::InstructionType Generator::operation(AST::ExpressionOperator op)
 {
     if (op==AST::OpSumm)
-        return Bytecode::SUM;
+        return Arduino::SUM;
     else if (op==AST::OpSubstract)
-        return Bytecode::SUB;
+        return Arduino::SUB;
     else if (op==AST::OpMultiply)
-        return Bytecode::MUL;
+        return Arduino::MUL;
     else if (op==AST::OpDivision)
-        return Bytecode::DIV;
+        return Arduino::DIV;
     else if (op==AST::OpPower)
-        return Bytecode::POW;
+        return Arduino::POW;
     else if (op==AST::OpNot)
-        return Bytecode::NEG;
+        return Arduino::NEG;
     else if (op==AST::OpAnd)
-        return Bytecode::AND;
+        return Arduino::AND;
     else if (op==AST::OpOr)
-        return Bytecode::OR;
+        return Arduino::OR;
     else if (op==AST::OpEqual)
-        return Bytecode::EQ;
+        return Arduino::EQ;
     else if (op==AST::OpNotEqual)
-        return Bytecode::NEQ;
+        return Arduino::NEQ;
     else if (op==AST::OpLess)
-        return Bytecode::LS;
+        return Arduino::LS;
     else if (op==AST::OpGreater)
-        return Bytecode::GT;
+        return Arduino::GT;
     else if (op==AST::OpLessOrEqual)
-        return Bytecode::LEQ;
+        return Arduino::LEQ;
     else if (op==AST::OpGreaterOrEqual)
-        return Bytecode::GEQ;
+        return Arduino::GEQ;
     else
-        return Bytecode::NOP;
+        return Arduino::NOP;
 }
 
 void Generator::addModule(const AST::ModulePtr mod)
@@ -489,7 +491,7 @@ void Generator::addKumirModule(int id, const AST::ModulePtr mod)
 {
     for (int i=0; i<mod->impl.globals.size(); i++) {
         const AST::VariablePtr var = mod->impl.globals[i];
-        Bytecode::TableElem glob;
+        Arduino::TableElem glob;
         glob.type = Bytecode::EL_GLOBAL;
         glob.module = quint8(id);
         glob.id = quint16(i);
@@ -504,9 +506,9 @@ void Generator::addKumirModule(int id, const AST::ModulePtr mod)
         glob.recordClassLocalizedName = var->baseType.name.toStdWString();
         byteCode_->d.push_back(glob);
     }
-    Bytecode::TableElem initElem;
-    Bytecode::Instruction returnFromInit;
-    returnFromInit.type = Bytecode::RET;
+    Arduino::TableElem initElem;
+    Arduino::Instruction returnFromInit;
+    returnFromInit.type = Arduino::RET;
     initElem.type = Bytecode::EL_INIT;
     initElem.module = quint8(id);
     initElem.moduleLocalizedName = mod->header.name.toStdWString();
@@ -542,11 +544,11 @@ void Generator::addKumirModule(int id, const AST::ModulePtr mod)
     }
 }
 
-void Generator::shiftInstructions(QList<Bytecode::Instruction> &instrs, int offset)
+void Generator::shiftInstructions(QList<Arduino::Instruction> &instrs, int offset)
 {
     for (int i=0; i<instrs.size(); i++) {
-        Bytecode::InstructionType t = instrs.at(i).type;
-        if (t==Bytecode::JNZ || t==Bytecode::JZ || t==Bytecode::JUMP) {
+        Arduino::InstructionType t = instrs.at(i).type;
+        if (t==Arduino::JNZ || t==Arduino::JZ || t==Arduino::JUMP) {
             instrs[i].arg += offset;
         }
     }
@@ -556,14 +558,14 @@ void Generator::addInputArgumentsMainAlgorhitm(int moduleId, int algorhitmId, co
 {
     // Generate hidden algorhitm, which will called before main to input arguments
     int algId = mod->impl.algorhitms.size();
-    QList<Bytecode::Instruction> instrs = makeLineInstructions(alg->impl.headerLexems);
+    QList<Arduino::Instruction> instrs = makeLineInstructions(alg->impl.headerLexems);
     QList<quint16> varsToOut;
     int locOffset = 0;
 
     // Add function return as local
     if (alg->header.returnType.kind!=AST::TypeNone) {
         const AST::VariablePtr retval = returnValue(alg);
-        Bytecode::TableElem loc;
+        Arduino::TableElem loc;
         loc.type = Bytecode::EL_LOCAL;
         loc.module = moduleId;
         loc.algId = algId;
@@ -580,7 +582,7 @@ void Generator::addInputArgumentsMainAlgorhitm(int moduleId, int algorhitmId, co
     // Add arguments as locals
     for (int i=0; i<alg->header.arguments.size(); i++) {
         const AST::VariablePtr var = alg->header.arguments[i];
-        Bytecode::TableElem loc;
+        Arduino::TableElem loc;
         loc.type = Bytecode::EL_LOCAL;
         loc.module = moduleId;
         loc.algId = algId;
@@ -604,33 +606,33 @@ void Generator::addInputArgumentsMainAlgorhitm(int moduleId, int algorhitmId, co
         // Initialize argument
         if (var->dimension > 0) {
             for (int j=var->dimension-1; j>=0 ; j--) {
-                QList<Bytecode::Instruction> initBounds;
+                QList<Arduino::Instruction> initBounds;
                 initBounds << calculate(moduleId, algorhitmId, 0, var->bounds[j].second);
                 initBounds << calculate(moduleId, algorhitmId, 0, var->bounds[j].first);
                 for (int i_bounds=0; i_bounds<initBounds.size(); i_bounds++) {
-                    Bytecode::Instruction & instr = initBounds[i_bounds];
-                    if (instr.type==Bytecode::LOAD || instr.type==Bytecode::LOADARR) {
-//                        if (instr.scope==Bytecode::LOCAL)
+                    Arduino::Instruction & instr = initBounds[i_bounds];
+                    if (instr.type==Arduino::LOAD || instr.type==Arduino::LOADARR) {
+//                        if (instr.scope==Arduino::LOCAL)
 //                            instr.arg = uint16_t(instr.arg-locOffset);
                     }
                 }
                 instrs << initBounds;
             }
-            Bytecode::Instruction bounds;
-            bounds.type = Bytecode::SETARR;
-            bounds.scope = Bytecode::LOCAL;
+            Arduino::Instruction bounds;
+            bounds.type = Arduino::SETARR;
+            bounds.scope = Arduino::LOCAL;
             bounds.arg = quint16(i+locOffset);
             instrs << bounds;
         }
-        Bytecode::Instruction init;
-        init.type = Bytecode::INIT;
-        init.scope = Bytecode::LOCAL;
+        Arduino::Instruction init;
+        init.type = Arduino::INIT;
+        init.scope = Arduino::LOCAL;
         init.arg = quint16(i+locOffset);
         instrs << init;
         if (var->initialValue.isValid() && var->dimension==0) {
-            Bytecode::Instruction load;
-            load.type = Bytecode::LOAD;
-            load.scope = Bytecode::CONSTT;
+            Arduino::Instruction load;
+            load.type = Arduino::LOAD;
+            load.scope = Arduino::CONSTT;
             load.arg = constantValue(valueType(var->baseType),
                                      0,
                                      var->initialValue,
@@ -639,11 +641,11 @@ void Generator::addInputArgumentsMainAlgorhitm(int moduleId, int algorhitmId, co
                                      var->baseType.name
                                      );
             instrs << load;
-            Bytecode::Instruction store = init;
-            store.type = Bytecode::STORE;
+            Arduino::Instruction store = init;
+            store.type = Arduino::STORE;
             instrs << store;
-            Bytecode::Instruction pop;
-            pop.type = Bytecode::POP;
+            Arduino::Instruction pop;
+            pop.type = Arduino::POP;
             pop.registerr = 0;
             instrs << pop;
         }
@@ -651,13 +653,13 @@ void Generator::addInputArgumentsMainAlgorhitm(int moduleId, int algorhitmId, co
         // If IN of INOUT argument -- require input
         // This made by special function call
         if (var->accessType==AST::AccessArgumentIn || var->accessType==AST::AccessArgumentInOut)  {
-            Bytecode::Instruction varId;
-            varId.type = Bytecode::LOAD;
-            varId.scope = Bytecode::CONSTT;
+            Arduino::Instruction varId;
+            varId.type = Arduino::LOAD;
+            varId.scope = Arduino::CONSTT;
             varId.arg = constantValue(Bytecode::VT_int, 0, i+locOffset, QString(), QString());
 
-            Bytecode::Instruction call;
-            call.type = Bytecode::CALL;
+            Arduino::Instruction call;
+            call.type = Arduino::CALL;
             call.module = 0xFF;
             call.arg = 0xBB01;
 
@@ -673,40 +675,40 @@ void Generator::addInputArgumentsMainAlgorhitm(int moduleId, int algorhitmId, co
     for (int i=0; i<alg->header.arguments.size(); i++) {
         AST::VariableAccessType t = alg->header.arguments[i]->accessType;
         if (t==AST::AccessArgumentIn) {
-            Bytecode::Instruction load;
-            load.type = Bytecode::LOAD;
-            load.scope = Bytecode::LOCAL;
+            Arduino::Instruction load;
+            load.type = Arduino::LOAD;
+            load.scope = Arduino::LOCAL;
             load.arg = quint16(i+locOffset);
             instrs << load;
         }
         else if (t==AST::AccessArgumentOut||t==AST::AccessArgumentInOut) {
-            Bytecode::Instruction ref;
-            ref.type = Bytecode::REF;
-            ref.scope = Bytecode::LOCAL;
+            Arduino::Instruction ref;
+            ref.type = Arduino::REF;
+            ref.scope = Arduino::LOCAL;
             ref.arg = quint16(i+locOffset);
             instrs << ref;
         }
     }
 
-    Bytecode::Instruction argsCount;
-    argsCount.type = Bytecode::LOAD;
-    argsCount.scope = Bytecode::CONSTT;
+    Arduino::Instruction argsCount;
+    argsCount.type = Arduino::LOAD;
+    argsCount.scope = Arduino::CONSTT;
     argsCount.arg = constantValue(QList<Bytecode::ValueType>()<<Bytecode::VT_int,0,alg->header.arguments.size(), QString(), QString());
     instrs << argsCount;
 
     //  -- 2) Call main (first) algorhitm
-    Bytecode::Instruction callInstr;
-    callInstr.type = Bytecode::CALL;
+    Arduino::Instruction callInstr;
+    callInstr.type = Arduino::CALL;
     findFunction(alg, callInstr.module, callInstr.arg);
     instrs << callInstr;
     //  -- 3) Store return value
     if (alg->header.returnType.kind!=AST::TypeNone) {
-        Bytecode::Instruction storeRetVal;
-        storeRetVal.type = Bytecode::STORE;
-        storeRetVal.scope = Bytecode::LOCAL;
+        Arduino::Instruction storeRetVal;
+        storeRetVal.type = Arduino::STORE;
+        storeRetVal.scope = Arduino::LOCAL;
         storeRetVal.arg = 0;
-        Bytecode::Instruction pop;
-        pop.type = Bytecode::POP;
+        Arduino::Instruction pop;
+        pop.type = Arduino::POP;
         pop.registerr = 0;
         instrs << storeRetVal << pop;
     }
@@ -714,19 +716,19 @@ void Generator::addInputArgumentsMainAlgorhitm(int moduleId, int algorhitmId, co
     // Show what in result...
 
     for (int i=0; i<varsToOut.size(); i++) {
-        Bytecode::Instruction arg;
-        arg.type = Bytecode::LOAD;
-        arg.scope = Bytecode::CONSTT;
+        Arduino::Instruction arg;
+        arg.type = Arduino::LOAD;
+        arg.scope = Arduino::CONSTT;
         arg.arg = varsToOut[i];
         instrs << arg;
-        Bytecode::Instruction callShow;
-        callShow.type = Bytecode::CALL;
+        Arduino::Instruction callShow;
+        callShow.type = Arduino::CALL;
         callShow.module = 0xFF;
         callShow.arg = 0xBB02;
         instrs << callShow;
     }
 
-    Bytecode::TableElem func;
+    Arduino::TableElem func;
     func.type = Bytecode::EL_BELOWMAIN;
     func.algId = func.id = algId;
     func.module = moduleId;
@@ -814,7 +816,7 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
 
     for (int i=0; i<alg->impl.locals.size(); i++) {
         const AST::VariablePtr  var = alg->impl.locals[i];
-        Bytecode::TableElem loc;
+        Arduino::TableElem loc;
         loc.type = Bytecode::EL_LOCAL;
         loc.module = moduleId;
         loc.algId = id;
@@ -831,34 +833,34 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
         loc.recordClassLocalizedName = var->baseType.name.toStdWString();
         byteCode_->d.push_back(loc);
     }
-    Bytecode::TableElem func;
+    Arduino::TableElem func;
     func.type = type;
     func.module = moduleId;
     func.algId = func.id = id;
     func.name = alg->header.name.toStdWString();
     func.signature = signature.toStdWString();
     func.moduleLocalizedName = mod->header.name.toStdWString();
-    QList<Bytecode::Instruction> argHandle;
+    QList<Arduino::Instruction> argHandle;
 
     argHandle += makeLineInstructions(alg->impl.headerLexems);
 
     if (headerError.length()>0) {
-        Bytecode::Instruction err;
-        err.type = Bytecode::ERRORR;
-        err.scope = Bytecode::CONSTT;
+        Arduino::Instruction err;
+        err.type = Arduino::ERRORR;
+        err.scope = Arduino::CONSTT;
         err.arg = constantValue(Bytecode::VT_string, 0, headerError, QString(), QString());
         argHandle << err;
     }
 
     if (alg->impl.headerRuntimeError.size()>0) {
-        Bytecode::Instruction l;
-        l.type = Bytecode::LINE;
+        Arduino::Instruction l;
+        l.type = Arduino::LINE;
         l.arg = alg->impl.headerRuntimeErrorLine;
         argHandle << l;
-        Bytecode::setColumnPositionsToLineInstruction(l, 0u, 0u);
+        Arduino::setColumnPositionsToLineInstruction(l, 0u, 0u);
         argHandle << l;
-        l.type = Bytecode::ERRORR;
-        l.scope = Bytecode::CONSTT;
+        l.type = Arduino::ERRORR;
+        l.scope = Arduino::CONSTT;
         l.arg = constantValue(Bytecode::VT_string, 0,
                               ErrorMessages::message("KumirAnalizer", QLocale::Russian, alg->impl.headerRuntimeError)
                               , QString(), QString()
@@ -868,14 +870,14 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
 
     if (alg->impl.endLexems.size()>0 && debugLevel_==GeneratorInterface::LinesAndVariables) {
 
-        Bytecode::Instruction clearmarg;
-        clearmarg.type = Bytecode::CLEARMARG;
+        Arduino::Instruction clearmarg;
+        clearmarg.type = Arduino::CLEARMARG;
         clearmarg.arg = alg->impl.endLexems[0]->lineNo;
         argHandle << clearmarg;
     }
 
-    Bytecode::Instruction ctlOn, ctlOff;
-    ctlOn.type = ctlOff.type = Bytecode::CTL;
+    Arduino::Instruction ctlOn, ctlOff;
+    ctlOn.type = ctlOff.type = Arduino::CTL;
     ctlOn.module = ctlOff.module = 0x01; // Set error stack offset lineno
     ctlOn.arg = 0x0001;
     ctlOff.arg = 0x0000;
@@ -884,16 +886,16 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
         argHandle << ctlOn;
 
     for (int i=alg->header.arguments.size()-1; i>=0; i--) {
-        Bytecode::Instruction store;
+        Arduino::Instruction store;
         const AST::VariablePtr  var = alg->header.arguments[i];
         if (var->accessType==AST::AccessArgumentIn)
-            store.type = Bytecode::STORE;
+            store.type = Arduino::STORE;
         else
-            store.type = Bytecode::SETREF;
+            store.type = Arduino::SETREF;
         findVariable(moduleId, id, var, store.scope, store.arg);
         argHandle << store;
-        Bytecode::Instruction pop;
-        pop.type = Bytecode::POP;
+        Arduino::Instruction pop;
+        pop.type = Arduino::POP;
         pop.registerr = 0;
         argHandle << pop;
     }
@@ -905,14 +907,14 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
                 argHandle << calculate(moduleId, id, 0, var->bounds[i].second);
                 argHandle << calculate(moduleId, id, 0, var->bounds[i].first);
             }
-            Bytecode::Instruction bounds;
-            bounds.type = Bytecode::UPDARR;
+            Arduino::Instruction bounds;
+            bounds.type = Arduino::UPDARR;
             findVariable(moduleId, id, var, bounds.scope, bounds.arg);
             argHandle << bounds;
         }
         if (var->accessType==AST::AccessArgumentOut) {
-            Bytecode::Instruction init;
-            init.type = Bytecode::INIT;
+            Arduino::Instruction init;
+            init.type = Arduino::INIT;
             findVariable(moduleId, id, var, init.scope, init.arg);
             argHandle << init;
         }
@@ -923,9 +925,9 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
     }
 
     if (beginError.length()>0) {
-        Bytecode::Instruction err;
-        err.type = Bytecode::ERRORR;
-        err.scope = Bytecode::CONSTT;
+        Arduino::Instruction err;
+        err.type = Arduino::ERRORR;
+        err.scope = Arduino::CONSTT;
         err.arg = constantValue(Bytecode::VT_string, 0, beginError, QString(), QString());
         argHandle << err;
     }
@@ -933,9 +935,9 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
     if (debugLevel_==GeneratorInterface::LinesAndVariables)
         argHandle << ctlOff;
 
-    QList<Bytecode::Instruction> pre = instructions(moduleId, id, 0, alg->impl.pre);
-    QList<Bytecode::Instruction> body = instructions(moduleId, id, 0, alg->impl.body);
-    QList<Bytecode::Instruction> post = instructions(moduleId, id, 0, alg->impl.post);
+    QList<Arduino::Instruction> pre = instructions(moduleId, id, 0, alg->impl.pre);
+    QList<Arduino::Instruction> body = instructions(moduleId, id, 0, alg->impl.body);
+    QList<Arduino::Instruction> post = instructions(moduleId, id, 0, alg->impl.post);
 
     shiftInstructions(pre, argHandle.size());
 
@@ -944,7 +946,7 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
     offset += body.size();
     shiftInstructions(post, offset);
 
-    QList<Bytecode::Instruction> ret;
+    QList<Arduino::Instruction> ret;
 
     int retIp = argHandle.size() + pre.size() + body.size() + post.size();
 
@@ -962,9 +964,9 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
             }
         }
         if (endError.length()>0) {
-            Bytecode::Instruction err;
-            err.type = Bytecode::ERRORR;
-            err.scope = Bytecode::CONSTT;
+            Arduino::Instruction err;
+            err.type = Arduino::ERRORR;
+            err.scope = Arduino::CONSTT;
             err.arg = constantValue(Bytecode::VT_string, 0, endError, QString(), QString());
             ret << err;
         }
@@ -973,27 +975,27 @@ void Generator::addFunction(int id, int moduleId, Bytecode::ElemType type, const
 
     const AST::VariablePtr  retval = returnValue(alg);
     if (retval) {
-        Bytecode::Instruction loadRetval;
-        loadRetval.type = Bytecode::LOAD;
+        Arduino::Instruction loadRetval;
+        loadRetval.type = Arduino::LOAD;
         findVariable(moduleId, id, retval, loadRetval.scope, loadRetval.arg);
         ret << loadRetval;
 
     }
 
-    Bytecode::Instruction retturn;
-    retturn.type = Bytecode::RET;
+    Arduino::Instruction retturn;
+    retturn.type = Arduino::RET;
     ret << retturn;
 
-    QList<Bytecode::Instruction> instrs = argHandle + pre + body + post + ret;
+    QList<Arduino::Instruction> instrs = argHandle + pre + body + post + ret;
     func.instructions = instrs.toVector().toStdVector();
     byteCode_->d.push_back(func);
 }
 
-QList<Bytecode::Instruction> Generator::instructions(
+QList<Arduino::Instruction> Generator::instructions(
     int modId, int algId, int level,
     const QList<AST::StatementPtr > &statements)
 {
-    QList<Bytecode::Instruction> result;
+    QList<Arduino::Instruction> result;
     for (int i=0; i<statements.size(); i++) {
         const AST::StatementPtr  st = statements[i];
         switch (st->type) {
@@ -1068,23 +1070,23 @@ quint16 Generator::constantValue(const QList<Bytecode::ValueType> & type, quint8
     }
 }
 
-void Generator::ERRORR(int , int , int , const AST::StatementPtr  st, QList<Bytecode::Instruction>  & result)
+void Generator::ERRORR(int , int , int , const AST::StatementPtr  st, QList<Arduino::Instruction>  & result)
 {
     result += makeLineInstructions(st->lexems);
     const QString error = ErrorMessages::message("KumirAnalizer", QLocale::Russian, st->error);
-    Bytecode::Instruction e;
-    e.type = Bytecode::ERRORR;
-    e.scope = Bytecode::CONSTT;
+    Arduino::Instruction e;
+    e.type = Arduino::ERRORR;
+    e.scope = Arduino::CONSTT;
     e.arg = constantValue(Bytecode::VT_string, 0, error, QString(), QString());
     result << e;
 }
 
-void Generator::findVariable(int modId, int algId, const AST::VariablePtr  var, Bytecode::VariableScope & scope, quint16 & id) const
+void Generator::findVariable(int modId, int algId, const AST::VariablePtr var, Arduino::VariableScope & scope, quint16 & id) const
 {
     const AST::ModulePtr  mod = ast_->modules.at(modId);
     for (quint16 i=0; i<mod->impl.globals.size(); i++) {
         if (mod->impl.globals.at(i)==var) {
-            scope = Bytecode::GLOBAL;
+            scope = Arduino::GLOBAL;
             id = i;
             return;
         }
@@ -1092,7 +1094,7 @@ void Generator::findVariable(int modId, int algId, const AST::VariablePtr  var, 
     const AST::AlgorithmPtr  alg = mod->impl.algorhitms[algId];
     for (quint16 i=0; i<alg->impl.locals.size(); i++) {
         if (alg->impl.locals.at(i)==var) {
-            scope = Bytecode::LOCAL;
+            scope = Arduino::LOCAL;
             id = i;
             return;
         }
@@ -1131,13 +1133,13 @@ void Generator::findFunction(const AST::AlgorithmPtr alg, quint8 &module, quint1
     }
 }
 
-QList<Bytecode::Instruction> Generator::makeLineInstructions(const QList<AST::LexemPtr> &lexems) const
+QList<Arduino::Instruction> Generator::makeLineInstructions(const QList<AST::LexemPtr> &lexems) const
 {
-    QList<Bytecode::Instruction> result;
+    QList<Arduino::Instruction> result;
     if (debugLevel_ != GeneratorInterface::NoDebug) {
-        Bytecode::Instruction lineNoInstruction, lineColInstruction;
-        lineNoInstruction.type = lineColInstruction.type = Bytecode::LINE;
-        lineNoInstruction.lineSpec = Bytecode::LINE_NUMBER;
+        Arduino::Instruction lineNoInstruction, lineColInstruction;
+        lineNoInstruction.type = lineColInstruction.type = Arduino::LINE;
+        lineNoInstruction.lineSpec = Arduino::LINE_NUMBER;
         if (lexems.size() > 0 && lexems.first()->lineNo != -1) {
             AST::LexemPtr first = lexems.first();
             AST::LexemPtr last = first;
@@ -1151,19 +1153,19 @@ QList<Bytecode::Instruction> Generator::makeLineInstructions(const QList<AST::Le
             quint32 colEnd = last->linePos + last->data.length();
             if (last->type == Shared::LxConstLiteral)
                 colEnd += 2;  // two quote symbols are not in lexem data
-            Bytecode::setColumnPositionsToLineInstruction(lineColInstruction, colStart, colEnd);
+            Arduino::setColumnPositionsToLineInstruction(lineColInstruction, colStart, colEnd);
             result << lineNoInstruction << lineColInstruction;
         }
     }
     return result;
 }
 
-void Generator::ASSIGN(int modId, int algId, int level, const AST::StatementPtr st, QList<Bytecode::Instruction> & result)
+void Generator::ASSIGN(int modId, int algId, int level, const AST::StatementPtr st, QList<Arduino::Instruction> & result)
 {
     result += makeLineInstructions(st->lexems);
 
     const AST::ExpressionPtr rvalue = st->expressions[0];
-    QList<Bytecode::Instruction> rvalueInstructions = calculate(modId, algId, level, rvalue);
+    QList<Arduino::Instruction> rvalueInstructions = calculate(modId, algId, level, rvalue);
     shiftInstructions(rvalueInstructions, result.size());
     result << rvalueInstructions;
 
@@ -1175,9 +1177,9 @@ void Generator::ASSIGN(int modId, int algId, int level, const AST::StatementPtr 
 
         if (diff>0) {
             // Load source string
-            Bytecode::Instruction load;
+            Arduino::Instruction load;
             findVariable(modId, algId, lvalue->variable, load.scope, load.arg);
-            load.type = lvalue->variable->dimension>0? Bytecode::LOADARR : Bytecode::LOAD;
+            load.type = lvalue->variable->dimension>0? Arduino::LOADARR : Arduino::LOAD;
             for (int i=lvalue->variable->dimension-1; i>=0 ;i--) {
                 result << calculate(modId, algId, level, lvalue->operands[i]);
             }
@@ -1189,14 +1191,14 @@ void Generator::ASSIGN(int modId, int algId, int level, const AST::StatementPtr 
 
             result << calculate(modId, algId, level,
                                 lvalue->operands[lvalue->operands.count()-1]);
-            Bytecode::Instruction argsCount;
-            argsCount.type = Bytecode::LOAD;
-            argsCount.scope = Bytecode::CONSTT;
+            Arduino::Instruction argsCount;
+            argsCount.type = Arduino::LOAD;
+            argsCount.scope = Arduino::CONSTT;
             argsCount.arg = constantValue(Bytecode::VT_int, 0, 3, QString(), QString());
             result << argsCount;
 
-            Bytecode::Instruction call;
-            call.type = Bytecode::CALL;
+            Arduino::Instruction call;
+            call.type = Arduino::CALL;
             call.module = 0xff;
             call.arg = 0x05;
             result << call;
@@ -1209,22 +1211,22 @@ void Generator::ASSIGN(int modId, int algId, int level, const AST::StatementPtr 
                                 lvalue->operands[lvalue->operands.count()-2]);
             result << calculate(modId, algId, level,
                                 lvalue->operands[lvalue->operands.count()-1]);
-            Bytecode::Instruction argsCount;
-            argsCount.type = Bytecode::LOAD;
-            argsCount.scope = Bytecode::CONSTT;
+            Arduino::Instruction argsCount;
+            argsCount.type = Arduino::LOAD;
+            argsCount.scope = Arduino::CONSTT;
             argsCount.arg = constantValue(Bytecode::VT_int, 0, 4, QString(), QString());
             result << argsCount;
 
-            Bytecode::Instruction call;
-            call.type = Bytecode::CALL;
+            Arduino::Instruction call;
+            call.type = Arduino::CALL;
             call.module = 0xff;
             call.arg = 0x07;
             result << call;
         }
 
-        Bytecode::Instruction store;
+        Arduino::Instruction store;
         findVariable(modId, algId, lvalue->variable, store.scope, store.arg);
-        store.type = lvalue->variable->dimension>0? Bytecode::STOREARR : Bytecode::STORE;
+        store.type = lvalue->variable->dimension>0? Arduino::STOREARR : Arduino::STORE;
         if (lvalue->kind==AST::ExprArrayElement) {
             for (int i=lvalue->variable->dimension-1; i>=0 ;i--) {
                 result << calculate(modId, algId, level, lvalue->operands[i]);
@@ -1232,20 +1234,20 @@ void Generator::ASSIGN(int modId, int algId, int level, const AST::StatementPtr 
         }
 
         result << store;
-        Bytecode::Instruction pop;
-        pop.type = Bytecode::POP;
+        Arduino::Instruction pop;
+        pop.type = Arduino::POP;
         pop.registerr = 0;
         result << pop;
     }
 }
 
-QList<Bytecode::Instruction> Generator::calculate(int modId, int algId, int level, const AST::ExpressionPtr st)
+QList<Arduino::Instruction> Generator::calculate(int modId, int algId, int level, const AST::ExpressionPtr st)
 {
-    QList<Bytecode::Instruction> result;
+    QList<Arduino::Instruction> result;
     if (st->useFromCache) {
-        Bytecode::Instruction instr;
-        memset(&instr, 0, sizeof(Bytecode::Instruction));
-        instr.type = Bytecode::CLOAD;
+        Arduino::Instruction instr;
+        memset(&instr, 0, sizeof(Arduino::Instruction));
+        instr.type = Arduino::CLOAD;
         result << instr;
     }
     else if (st->kind==AST::ExprConst) {
@@ -1253,36 +1255,36 @@ QList<Bytecode::Instruction> Generator::calculate(int modId, int algId, int leve
                                     st->baseType.actor ? st->baseType.actor->localizedModuleName(QLocale::Russian) : "",
                                     st->baseType.name
                                     );
-        Bytecode::Instruction instr;
-        instr.type = Bytecode::LOAD;
-        instr.scope = Bytecode::CONSTT;
+        Arduino::Instruction instr;
+        instr.type = Arduino::LOAD;
+        instr.scope = Arduino::CONSTT;
         instr.arg = constId;
         result << instr;
     }
     else if (st->kind==AST::ExprVariable) {
-        Bytecode::Instruction instr;
-        instr.type = Bytecode::LOAD;
+        Arduino::Instruction instr;
+        instr.type = Arduino::LOAD;
         findVariable(modId, algId, st->variable, instr.scope, instr.arg);
         result << instr;
     }
     else if (st->kind==AST::ExprArrayElement) {
 
-        Bytecode::Instruction instr;
+        Arduino::Instruction instr;
         findVariable(modId, algId, st->variable, instr.scope, instr.arg);
-        instr.type = Bytecode::LOAD;
+        instr.type = Arduino::LOAD;
         if (st->variable->dimension>0) {
             for (int i=st->variable->dimension-1; i>=0; i--) {
                 result << calculate(modId, algId, level, st->operands[i]);
             }
-            instr.type = Bytecode::LOADARR;
+            instr.type = Arduino::LOADARR;
         }
         result << instr;
         int diff = st->operands.size() - st->variable->dimension;
-        Bytecode::Instruction argsCount;
-        argsCount.type = Bytecode::LOAD;
-        argsCount.scope = Bytecode::CONSTT;
-        Bytecode::Instruction specialFunction;
-        specialFunction.type = Bytecode::CALL;
+        Arduino::Instruction argsCount;
+        argsCount.type = Arduino::LOAD;
+        argsCount.scope = Arduino::CONSTT;
+        Arduino::Instruction specialFunction;
+        specialFunction.type = Arduino::CALL;
         specialFunction.module = 0xff;
         if (diff==1) {
             // Get char
@@ -1314,8 +1316,8 @@ QList<Bytecode::Instruction> Generator::calculate(int modId, int algId, int leve
             AST::VariableAccessType t = alg->header.arguments[i]->accessType;
             bool arr = alg->header.arguments[i]->dimension>0;
             if (t==AST::AccessArgumentOut||t==AST::AccessArgumentInOut) {
-                Bytecode::Instruction ref;
-                ref.type = Bytecode::REF;
+                Arduino::Instruction ref;
+                ref.type = Arduino::REF;
                 findVariable(modId, algId, st->operands[i]->variable, ref.scope, ref.arg);
                 result << ref;
             }
@@ -1323,61 +1325,61 @@ QList<Bytecode::Instruction> Generator::calculate(int modId, int algId, int leve
                 result << calculate(modId, algId, level, st->operands[i]);
             else if (t==AST::AccessArgumentIn && arr) {
                 // load the whole array into stack
-                Bytecode::Instruction load;
-                load.type = Bytecode::LOAD;
+                Arduino::Instruction load;
+                load.type = Arduino::LOAD;
                 findVariable(modId, algId, st->operands[i]->variable, load.scope, load.arg);
                 result << load;
             }
             argsCount ++;
         }
-        Bytecode::Instruction b;
-        b.type = Bytecode::LOAD;
-        b.scope = Bytecode::CONSTT;
+        Arduino::Instruction b;
+        b.type = Arduino::LOAD;
+        b.scope = Arduino::CONSTT;
         b.arg = constantValue(Bytecode::VT_int, 0, argsCount, QString(), QString());
         result << b;
 
 
-        Bytecode::Instruction instr;
-        instr.type = Bytecode::CALL;
+        Arduino::Instruction instr;
+        instr.type = Arduino::CALL;
         findFunction(st->function, instr.module, instr.arg);
         result << instr;
     }
     else if (st->kind==AST::ExprSubexpression) {
         std::list<int> jmps;
         for (int i=0; i<st->operands.size(); i++) {
-            QList<Bytecode::Instruction> operandInstrs = calculate(modId, algId, level, st->operands[i]);
+            QList<Arduino::Instruction> operandInstrs = calculate(modId, algId, level, st->operands[i]);
             shiftInstructions(operandInstrs, result.size());
             result << operandInstrs;
             // Drop cached value in case of compare-chains calculations and Z-flag
             if (st->operands[i]->clearCacheOnFailure) {
-                Bytecode::Instruction clearCacheOnZ;
-                memset(&clearCacheOnZ, 0, sizeof(Bytecode::Instruction));
-                clearCacheOnZ.type = Bytecode::CDROPZ;
+                Arduino::Instruction clearCacheOnZ;
+                memset(&clearCacheOnZ, 0, sizeof(Arduino::Instruction));
+                clearCacheOnZ.type = Arduino::CDROPZ;
                 result << clearCacheOnZ;
             }
             // Do short circuit calculation for AND and OR operations
             if (i==0 && (st->operatorr==AST::OpAnd || st->operatorr==AST::OpOr)) {
                 // Simple case: just JZ/JNZ to end
-                Bytecode::Instruction gotoEnd;
+                Arduino::Instruction gotoEnd;
                 gotoEnd.registerr = 0;
-                gotoEnd.type = st->operatorr==AST::OpAnd? Bytecode::JZ : Bytecode::JNZ;
+                gotoEnd.type = st->operatorr==AST::OpAnd? Arduino::JZ : Arduino::JNZ;
                 jmps.push_back(result.size());
                 result << gotoEnd;
             }
             else if (st->operatorr==AST::OpAnd || st->operatorr==AST::OpOr) {
                 // We must remove pre-previous value from stack
-                Bytecode::Instruction gotoCheckNext;
+                Arduino::Instruction gotoCheckNext;
                 gotoCheckNext.registerr = 0;
                 gotoCheckNext.arg = result.size()+5;
-                gotoCheckNext.type = st->operatorr==AST::OpAnd? Bytecode::JNZ : Bytecode::JZ;
+                gotoCheckNext.type = st->operatorr==AST::OpAnd? Arduino::JNZ : Arduino::JZ;
                 result << gotoCheckNext;
-                Bytecode::Instruction pop;
+                Arduino::Instruction pop;
                 pop.registerr = 0;
-                pop.type = Bytecode::POP;
+                pop.type = Arduino::POP;
                 result << pop << pop;
-                Bytecode::Instruction load;
-                load.type = Bytecode::LOAD;
-                load.scope = Bytecode::CONSTT;
+                Arduino::Instruction load;
+                load.type = Arduino::LOAD;
+                load.scope = Arduino::CONSTT;
                 load.arg = constantValue(Bytecode::VT_bool, 0,
                                          st->operatorr==AST::OpAnd
                                          ? false
@@ -1386,15 +1388,15 @@ QList<Bytecode::Instruction> Generator::calculate(int modId, int algId, int leve
                                          );
                 result << load;
                 jmps.push_back(result.size());
-                Bytecode::Instruction gotoEnd;
-                gotoEnd.type = Bytecode::JUMP;
+                Arduino::Instruction gotoEnd;
+                gotoEnd.type = Arduino::JUMP;
                 result << gotoEnd;
             }
         }
-        Bytecode::Instruction instr;
+        Arduino::Instruction instr;
         instr.type = operation(st->operatorr);
         if (st->operatorr==AST::OpSubstract && st->operands.size()==1) {
-            instr.type = Bytecode::NEG;
+            instr.type = Arduino::NEG;
         }
         result << instr;
         for (std::list<int>::iterator it=jmps.begin(); it!=jmps.end(); it++) {
@@ -1405,9 +1407,9 @@ QList<Bytecode::Instruction> Generator::calculate(int modId, int algId, int leve
 
 
     if (st->keepInCache) {
-        Bytecode::Instruction instr;
-        memset(&instr, 0, sizeof(Bytecode::Instruction));
-        instr.type = Bytecode::CSTORE;
+        Arduino::Instruction instr;
+        memset(&instr, 0, sizeof(Arduino::Instruction));
+        instr.type = Arduino::CSTORE;
         result << instr;
     }
 
@@ -1415,49 +1417,49 @@ QList<Bytecode::Instruction> Generator::calculate(int modId, int algId, int leve
     return result;
 }
 
-void Generator::PAUSE_STOP(int , int , int , const AST::StatementPtr  st, QList<Bytecode::Instruction> & result)
+void Generator::PAUSE_STOP(int , int , int , const AST::StatementPtr  st, QList<Arduino::Instruction> & result)
 {
     result += makeLineInstructions(st->lexems);
 
-    Bytecode::Instruction a;
-    a.type = st->type==AST::StPause? Bytecode::PAUSE : Bytecode::HALT;
+    Arduino::Instruction a;
+    a.type = st->type==AST::StPause? Arduino::PAUSE : Arduino::HALT;
     a.arg = 0u;
     result << a;
 }
 
-void Generator::ASSERT(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result)
+void Generator::ASSERT(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result)
 {
     result += makeLineInstructions(st->lexems);
 
     for (int i=0; i<st->expressions.size(); i++) {
-        QList<Bytecode::Instruction> exprInstrs;
+        QList<Arduino::Instruction> exprInstrs;
         exprInstrs = calculate(modId, algId, level, st->expressions[i]);
         shiftInstructions(exprInstrs, result.size());
         result << exprInstrs;
-        Bytecode::Instruction pop;
-        pop.type = Bytecode::POP;
+        Arduino::Instruction pop;
+        pop.type = Arduino::POP;
         pop.registerr = 0;
         result << pop;
-        Bytecode::Instruction showreg;
-        showreg.type = Bytecode::SHOWREG;
+        Arduino::Instruction showreg;
+        showreg.type = Arduino::SHOWREG;
         showreg.registerr = pop.registerr;
         result << showreg;
         int ip = result.size(); // pointing to next of calculation (i.e. JNZ instruction)
         int targetIp = ip + 2;
-        Bytecode::Instruction jnz;
-        jnz.type = Bytecode::JNZ;
+        Arduino::Instruction jnz;
+        jnz.type = Arduino::JNZ;
         jnz.registerr = 0;
         jnz.arg = targetIp;
         result << jnz;
-        Bytecode::Instruction err;
-        err.type = Bytecode::ERRORR;
-        err.scope = Bytecode::CONSTT;
+        Arduino::Instruction err;
+        err.type = Arduino::ERRORR;
+        err.scope = Arduino::CONSTT;
         err.arg = constantValue(Bytecode::VT_string, 0, tr("Assertion false"), QString(), QString());
         result << err;
     }
 }
 
-void Generator::INIT(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result)
+void Generator::INIT(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result)
 {
     result += makeLineInstructions(st->lexems);
 
@@ -1468,32 +1470,32 @@ void Generator::INIT(int modId, int algId, int level, const AST::StatementPtr  s
                 result << calculate(modId, algId, level, var->bounds[i].second);
                 result << calculate(modId, algId, level, var->bounds[i].first);
             }
-            Bytecode::Instruction bounds;
-            bounds.type = Bytecode::SETARR;
+            Arduino::Instruction bounds;
+            bounds.type = Arduino::SETARR;
             findVariable(modId, algId, var, bounds.scope, bounds.arg);
             result << bounds;
         }
         else if (var->dimension > 0 && var->bounds.size()==0) {
             // TODO : Implement me after compiler support
         }
-        Bytecode::Instruction init;
-        init.type = Bytecode::INIT;
+        Arduino::Instruction init;
+        init.type = Arduino::INIT;
         findVariable(modId, algId, var, init.scope, init.arg);
         result << init;
         if (var->initialValue.isValid()) {
-            Bytecode::Instruction load;
-            load.type = Bytecode::LOAD;
-            load.scope = Bytecode::CONSTT;
+            Arduino::Instruction load;
+            load.type = Arduino::LOAD;
+            load.scope = Arduino::CONSTT;
             load.arg = constantValue(valueType(var->baseType), var->dimension, var->initialValue,
                                      var->baseType.actor ? var->baseType.actor->localizedModuleName(QLocale::Russian) : "",
                                      var->baseType.name
                                      );
             result << load;
-            Bytecode::Instruction store = init;
-            store.type = Bytecode::STORE;
+            Arduino::Instruction store = init;
+            store.type = Arduino::STORE;
             result << store;
-            Bytecode::Instruction pop;
-            pop.type = Bytecode::POP;
+            Arduino::Instruction pop;
+            pop.type = Arduino::POP;
             pop.registerr = 0;
             result << pop;
         }
@@ -1503,7 +1505,7 @@ void Generator::INIT(int modId, int algId, int level, const AST::StatementPtr  s
     }
 }
 
-void Generator::CALL_SPECIAL(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> & result)
+void Generator::CALL_SPECIAL(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> & result)
 {
     result += makeLineInstructions(st->lexems);
 
@@ -1517,7 +1519,7 @@ void Generator::CALL_SPECIAL(int modId, int algId, int level, const AST::Stateme
             const AST::ExpressionPtr  expr = st->expressions[3*i];
             const AST::ExpressionPtr  format1 = st->expressions[3*i+1];
             const AST::ExpressionPtr  format2 = st->expressions[3*i+2];
-            QList<Bytecode::Instruction> instrs;
+            QList<Arduino::Instruction> instrs;
             instrs = calculate(modId, algId, level, expr);
             shiftInstructions(instrs, result.size());
             result << instrs;
@@ -1533,7 +1535,7 @@ void Generator::CALL_SPECIAL(int modId, int algId, int level, const AST::Stateme
 
         if (st->expressions.size() % 3) {
             // File handle
-            QList<Bytecode::Instruction> instrs = calculate(modId, algId, level, st->expressions.last());
+            QList<Arduino::Instruction> instrs = calculate(modId, algId, level, st->expressions.last());
             shiftInstructions(instrs, result.size());
             result << instrs;
         }
@@ -1544,9 +1546,9 @@ void Generator::CALL_SPECIAL(int modId, int algId, int level, const AST::Stateme
         int varsCount = st->expressions.size();
         for (int i = varsCount-1; i>=0; i--) {
             const AST::ExpressionPtr  varExpr = st->expressions[i];
-            Bytecode::Instruction ref;
+            Arduino::Instruction ref;
             if (varExpr->kind==AST::ExprConst) {
-                ref.scope = Bytecode::CONSTT;
+                ref.scope = Arduino::CONSTT;
                 ref.arg = constantValue(valueType(varExpr->baseType), 0, varExpr->constant,
                                         varExpr->baseType.actor ? varExpr->baseType.actor->localizedModuleName(QLocale::Russian) : "",
                                         varExpr->baseType.name
@@ -1556,20 +1558,20 @@ void Generator::CALL_SPECIAL(int modId, int algId, int level, const AST::Stateme
                 findVariable(modId, algId, varExpr->variable, ref.scope, ref.arg);
             }
             if (varExpr->kind==AST::ExprVariable || varExpr->kind==AST::ExprConst) {
-                ref.type = Bytecode::REF;
+                ref.type = Arduino::REF;
                 result << ref;
             }
             else if (varExpr->kind == AST::ExprArrayElement) {
-                ref.type = Bytecode::REFARR;
+                ref.type = Arduino::REFARR;
                 for (int j=varExpr->operands.size()-1; j>=0; j--) {
-                    QList<Bytecode::Instruction> operandInstrs = calculate(modId, algId, level, varExpr->operands[j]);
+                    QList<Arduino::Instruction> operandInstrs = calculate(modId, algId, level, varExpr->operands[j]);
                     shiftInstructions(operandInstrs, result.size());
                     result << operandInstrs;
                 }
                 result << ref;
             }
             else {
-                QList<Bytecode::Instruction> operandInstrs = calculate(modId, algId, level, varExpr);
+                QList<Arduino::Instruction> operandInstrs = calculate(modId, algId, level, varExpr);
                 shiftInstructions(operandInstrs, result.size());
                 result << operandInstrs;
             }
@@ -1578,14 +1580,14 @@ void Generator::CALL_SPECIAL(int modId, int algId, int level, const AST::Stateme
         argsCount = st->expressions.size();
     }
 
-    Bytecode::Instruction pushCount;
-    pushCount.type = Bytecode::LOAD;
-    pushCount.scope = Bytecode::CONSTT;
+    Arduino::Instruction pushCount;
+    pushCount.type = Arduino::LOAD;
+    pushCount.scope = Arduino::CONSTT;
     pushCount.arg = constantValue(Bytecode::VT_int, 0, argsCount, QString(), QString());
     result << pushCount;
 
-    Bytecode::Instruction call;
-    call.type = Bytecode::CALL;
+    Arduino::Instruction call;
+    call.type = Arduino::CALL;
     call.module = 0xFF;
     if (st->type==AST::StInput)
         call.arg = 0x0000;
@@ -1596,36 +1598,36 @@ void Generator::CALL_SPECIAL(int modId, int algId, int level, const AST::Stateme
 }
 
 
-void Generator::IFTHENELSE(int modId, int algId, int level, const AST::StatementPtr  st, QList<Bytecode::Instruction> &result)
+void Generator::IFTHENELSE(int modId, int algId, int level, const AST::StatementPtr  st, QList<Arduino::Instruction> &result)
 {
     int jzIP = -1;
     result += makeLineInstructions(st->lexems);
 
     if (st->conditionals[0].condition) {
-        QList<Bytecode::Instruction> conditionInstructions = calculate(modId, algId, level, st->conditionals[0].condition);
+        QList<Arduino::Instruction> conditionInstructions = calculate(modId, algId, level, st->conditionals[0].condition);
         shiftInstructions(conditionInstructions, result.size());
         result << conditionInstructions;
 
-        Bytecode::Instruction pop;
-        pop.type = Bytecode::POP;
+        Arduino::Instruction pop;
+        pop.type = Arduino::POP;
         pop.registerr = 0;
         result << pop;
 
-        Bytecode::Instruction showreg;
-        showreg.type = Bytecode::SHOWREG;
+        Arduino::Instruction showreg;
+        showreg.type = Arduino::SHOWREG;
         showreg.registerr = 0;
         result << showreg;
 
 
         if (st->headerError.size()>0) {
-            Bytecode::Instruction garbage;
-            garbage.type = Bytecode::LINE;
+            Arduino::Instruction garbage;
+            garbage.type = Arduino::LINE;
             garbage.arg = st->headerErrorLine;
             result << garbage;
-            Bytecode::setColumnPositionsToLineInstruction(garbage, 0u, 0u);
+            Arduino::setColumnPositionsToLineInstruction(garbage, 0u, 0u);
             result << garbage;
-            garbage.type = Bytecode::ERRORR;
-            garbage.scope = Bytecode::CONSTT;
+            garbage.type = Arduino::ERRORR;
+            garbage.scope = Arduino::CONSTT;
             garbage.arg = constantValue(Bytecode::VT_string, 0,
                                         ErrorMessages::message("KumirAnalizer", QLocale::Russian, st->headerError)
                                         , QString(), QString()
@@ -1634,14 +1636,14 @@ void Generator::IFTHENELSE(int modId, int algId, int level, const AST::Statement
         }
 
         jzIP = result.size();
-        Bytecode::Instruction jz;
-        jz.type = Bytecode::JZ;
+        Arduino::Instruction jz;
+        jz.type = Arduino::JZ;
         jz.registerr = 0;
         result << jz;
     }
 
 
-    Bytecode::Instruction error;
+    Arduino::Instruction error;
     if (st->conditionals[0].conditionError.size()>0) {        
         if (st->conditionals[0].lexems.isEmpty()) {
             result += makeLineInstructions(st->lexems);
@@ -1650,13 +1652,13 @@ void Generator::IFTHENELSE(int modId, int algId, int level, const AST::Statement
             result += makeLineInstructions(st->conditionals[0].lexems);
         }
         const QString msg = ErrorMessages::message("KumirAnalizer", QLocale::Russian, st->conditionals[0].conditionError);
-        error.type = Bytecode::ERRORR;
-        error.scope = Bytecode::CONSTT;
+        error.type = Arduino::ERRORR;
+        error.scope = Arduino::CONSTT;
         error.arg = constantValue(Bytecode::VT_string, 0, msg, QString(), QString());
         result << error;
     }
     else {
-        QList<Bytecode::Instruction> thenInstrs = instructions(modId, algId, level, st->conditionals[0].body);
+        QList<Arduino::Instruction> thenInstrs = instructions(modId, algId, level, st->conditionals[0].body);
         shiftInstructions(thenInstrs, result.size());
         result += thenInstrs;
     }
@@ -1666,8 +1668,8 @@ void Generator::IFTHENELSE(int modId, int algId, int level, const AST::Statement
 
     if (st->conditionals.size()>1) {
         int jumpIp = result.size();
-        Bytecode::Instruction jump;
-        jump.type = Bytecode::JUMP;
+        Arduino::Instruction jump;
+        jump.type = Arduino::JUMP;
         result << jump;
         result[jzIP].arg = result.size();
         if (st->conditionals[1].conditionError.size()>0) {
@@ -1678,13 +1680,13 @@ void Generator::IFTHENELSE(int modId, int algId, int level, const AST::Statement
             else {
                 result += makeLineInstructions(st->conditionals[1].lexems);
             }
-            error.type = Bytecode::ERRORR;
-            error.scope = Bytecode::CONSTT;
+            error.type = Arduino::ERRORR;
+            error.scope = Arduino::CONSTT;
             error.arg = constantValue(Bytecode::VT_string, 0, msg, QString(), QString());
             result << error;
         }
         else {
-            QList<Bytecode::Instruction> elseInstrs = instructions(modId, algId, level, st->conditionals[1].body);
+            QList<Arduino::Instruction> elseInstrs = instructions(modId, algId, level, st->conditionals[1].body);
             shiftInstructions(elseInstrs, result.size());
             result += elseInstrs;
         }
@@ -1699,25 +1701,25 @@ void Generator::IFTHENELSE(int modId, int algId, int level, const AST::Statement
         else {
             result += makeLineInstructions(st->endBlockLexems);
         }
-        error.type = Bytecode::ERRORR;
-        error.scope = Bytecode::CONSTT;
+        error.type = Arduino::ERRORR;
+        error.scope = Arduino::CONSTT;
         error.arg = constantValue(Bytecode::VT_string, 0, msg, QString(), QString());
         result << error;
     }
 
 }
 
-void Generator::SWITCHCASEELSE(int modId, int algId, int level, const AST::StatementPtr st, QList<Bytecode::Instruction> & result)
+void Generator::SWITCHCASEELSE(int modId, int algId, int level, const AST::StatementPtr st, QList<Arduino::Instruction> & result)
 {
     if (st->headerError.size()>0) {
-        Bytecode::Instruction garbage;
-        garbage.type = Bytecode::LINE;
+        Arduino::Instruction garbage;
+        garbage.type = Arduino::LINE;
         garbage.arg = st->headerErrorLine;
         result << garbage;
-        Bytecode::setColumnPositionsToLineInstruction(garbage, 0u, 0u);
+        Arduino::setColumnPositionsToLineInstruction(garbage, 0u, 0u);
         result << garbage;
-        garbage.type = Bytecode::ERRORR;
-        garbage.scope = Bytecode::CONSTT;
+        garbage.type = Arduino::ERRORR;
+        garbage.scope = Arduino::CONSTT;
         garbage.arg = constantValue(Bytecode::VT_string, 0,
                                     ErrorMessages::message("KumirAnalizer", QLocale::Russian, st->headerError)
                                     , QString(), QString()
@@ -1728,9 +1730,9 @@ void Generator::SWITCHCASEELSE(int modId, int algId, int level, const AST::State
 
     if (st->beginBlockError.size()>0) {
         const QString error = ErrorMessages::message("KumirAnalizer", QLocale::Russian, st->beginBlockError);
-        Bytecode::Instruction err;
-        err.type = Bytecode::ERRORR;
-        err.scope = Bytecode::CONSTT;
+        Arduino::Instruction err;
+        err.type = Arduino::ERRORR;
+        err.scope = Arduino::CONSTT;
         err.arg = constantValue(Bytecode::VT_string, 0, error, QString(), QString());
         result << err;
         return;
@@ -1749,37 +1751,37 @@ void Generator::SWITCHCASEELSE(int modId, int algId, int level, const AST::State
         result += makeLineInstructions(st->conditionals[i].lexems);
         if (!st->conditionals[i].conditionError.isEmpty()) {
             const QString error = ErrorMessages::message("KumirAnalizer", QLocale::Russian, st->conditionals[i].conditionError);
-            Bytecode::Instruction err;
-            err.type = Bytecode::ERRORR;
-            err.scope = Bytecode::CONSTT;
+            Arduino::Instruction err;
+            err.type = Arduino::ERRORR;
+            err.scope = Arduino::CONSTT;
             err.arg = constantValue(Bytecode::VT_string, 0, error, QString(), QString());
             result << err;
         }
         else {
             if (st->conditionals[i].condition) {
-                QList<Bytecode::Instruction> condInstrs = calculate(modId, algId, level, st->conditionals[i].condition);
+                QList<Arduino::Instruction> condInstrs = calculate(modId, algId, level, st->conditionals[i].condition);
                 shiftInstructions(condInstrs, result.size());
                 result << condInstrs;
-                Bytecode::Instruction pop;
-                pop.type = Bytecode::POP;
+                Arduino::Instruction pop;
+                pop.type = Arduino::POP;
                 pop.registerr = 0;
                 result << pop;
-                Bytecode::Instruction showreg;
-                showreg.type = Bytecode::SHOWREG;
+                Arduino::Instruction showreg;
+                showreg.type = Arduino::SHOWREG;
                 showreg.registerr = 0;
                 result << showreg;
-                Bytecode::Instruction jz;
-                jz.type = Bytecode::JZ;
+                Arduino::Instruction jz;
+                jz.type = Arduino::JZ;
                 jz.registerr = 0;
                 lastJzIp = result.size();
                 result << jz;
             }
-            QList<Bytecode::Instruction> instrs = instructions(modId, algId, level, st->conditionals[i].body);
+            QList<Arduino::Instruction> instrs = instructions(modId, algId, level, st->conditionals[i].body);
             shiftInstructions(instrs, result.size());
             result += instrs;
             if (i<st->conditionals.size()-1) {
-                Bytecode::Instruction jump;
-                jump.type = Bytecode::JUMP;
+                Arduino::Instruction jump;
+                jump.type = Arduino::JUMP;
                 jumpIps << result.size();
                 result << jump;
             }
@@ -1804,13 +1806,13 @@ const AST::VariablePtr  Generator::returnValue(const AST::AlgorithmPtr  alg)
 
 void Generator::BREAK(int , int , int level,
                       const AST::StatementPtr  st,
-                      QList<Bytecode::Instruction> & result)
+                      QList<Arduino::Instruction> & result)
 {
     result += makeLineInstructions(st->lexems);
 
-    Bytecode::Instruction jump;
-//    jump.type = Bytecode::JUMP;
-    jump.type = Bytecode::InstructionType(127);
+    Arduino::Instruction jump;
+//    jump.type = Arduino::JUMP;
+    jump.type = Arduino::InstructionType(127);
     jump.registerr = level;
 
     result << jump;
@@ -1819,36 +1821,36 @@ void Generator::BREAK(int , int , int level,
 void Generator::LOOP(int modId, int algId,
                      int level,
                      const AST::StatementPtr st,
-                     QList<Bytecode::Instruction> &result)
+                     QList<Arduino::Instruction> &result)
 {
-    Bytecode::Instruction ctlOn;
+    Arduino::Instruction ctlOn;
     ctlOn.module = 0x00;
     ctlOn.arg = 0x0001;
 
-    Bytecode::Instruction ctlOff;
+    Arduino::Instruction ctlOff;
     ctlOff.module = 0x00;
     ctlOff.arg = 0x0000;
 
-    ctlOn.type = ctlOff.type = Bytecode::CTL;
+    ctlOn.type = ctlOff.type = Arduino::CTL;
 
     if (st->beginBlockError.size()>0) {
         const QString error = ErrorMessages::message("KumirAnalizer", QLocale::Russian, st->beginBlockError);
         result += makeLineInstructions(st->lexems);
-        Bytecode::Instruction err;
-        err.type = Bytecode::ERRORR;
-        err.scope = Bytecode::CONSTT;
+        Arduino::Instruction err;
+        err.type = Arduino::ERRORR;
+        err.scope = Arduino::CONSTT;
         err.arg = constantValue(Bytecode::VT_string, 0, error, QString(), QString());
         result << err;
         return;
     }
 
-    Bytecode::Instruction swreg;
-    swreg.type = Bytecode::SHOWREG;
+    Arduino::Instruction swreg;
+    swreg.type = Arduino::SHOWREG;
     swreg.registerr = level * 5;
 
-    Bytecode::Instruction clmarg;
+    Arduino::Instruction clmarg;
     if (st->loop.endLexems.size()>0 && debugLevel_==GeneratorInterface::LinesAndVariables) {
-        clmarg.type = Bytecode::CLEARMARG;
+        clmarg.type = Arduino::CLEARMARG;
         clmarg.arg = st->loop.endLexems[0]->lineNo;
     }
 
@@ -1862,13 +1864,13 @@ void Generator::LOOP(int modId, int algId,
 
         if (st->loop.whileCondition) {
             // Calculate condition
-            QList<Bytecode::Instruction> whileCondInstructions = calculate(modId, algId, level, st->loop.whileCondition);
+            QList<Arduino::Instruction> whileCondInstructions = calculate(modId, algId, level, st->loop.whileCondition);
             shiftInstructions(whileCondInstructions, result.size());
             result << whileCondInstructions;
 
             // Check condition result
-            Bytecode::Instruction a;
-            a.type = Bytecode::POP;
+            Arduino::Instruction a;
+            a.type = Arduino::POP;
             a.registerr = level * 5;
             result << a;
 
@@ -1883,7 +1885,7 @@ void Generator::LOOP(int modId, int algId,
             }
 
             jzIp = result.size();
-            a.type = Bytecode::JZ;
+            a.type = Arduino::JZ;
             a.registerr = level * 5;
             result << a;
 
@@ -1908,23 +1910,23 @@ void Generator::LOOP(int modId, int algId,
         result += makeLineInstructions(st->lexems);
 
         // Calculate times value
-        QList<Bytecode::Instruction> timesValueInstructions = calculate(modId, algId, level, st->loop.timesValue);
+        QList<Arduino::Instruction> timesValueInstructions = calculate(modId, algId, level, st->loop.timesValue);
         shiftInstructions(timesValueInstructions, result.size());
         result << timesValueInstructions;
-        Bytecode::Instruction a;
+        Arduino::Instruction a;
 
         // Store value in register
-        a.type = Bytecode::POP;
+        a.type = Arduino::POP;
         a.registerr = level * 5 - 1;
         result << a;
 
         // Store initial value "0" in nearest register
-        a.type = Bytecode::LOAD;
-        a.scope = Bytecode::CONSTT;
+        a.type = Arduino::LOAD;
+        a.scope = Arduino::CONSTT;
         a.arg = constantValue(Bytecode::VT_int, 0, 0, QString(), QString());
         result << a;
 
-        a.type = Bytecode::POP;
+        a.type = Arduino::POP;
         a.registerr = level * 5;
         result << a;
 
@@ -1941,35 +1943,35 @@ void Generator::LOOP(int modId, int algId,
         }
 
         // Increase value in register
-        a.type = Bytecode::PUSH;
+        a.type = Arduino::PUSH;
         a.registerr = level * 5;
         result << a;
-        a.type = Bytecode::LOAD;
-        a.scope = Bytecode::CONSTT;
+        a.type = Arduino::LOAD;
+        a.scope = Arduino::CONSTT;
         a.arg = constantValue(Bytecode::VT_int, 0, 1, QString(), QString());
         result << a;
-        a.type = Bytecode::SUM;
+        a.type = Arduino::SUM;
         result << a;
-        a.type = Bytecode::POP;
+        a.type = Arduino::POP;
         a.registerr = level * 5;
         result << a;
-        a.type = Bytecode::PUSH;
+        a.type = Arduino::PUSH;
         a.registerr = level * 5;
         result << a;
 
         // Compare value to "times" value
-        a.type = Bytecode::PUSH;
+        a.type = Arduino::PUSH;
         a.registerr = level * 5 - 1;
         result << a;
-        a.type = Bytecode::GT;
+        a.type = Arduino::GT;
         result << a;
-        a.type = Bytecode::POP;
+        a.type = Arduino::POP;
         a.registerr = 0;
         result << a;
 
         // Check if register value > 0 (i.e. "counter" > "times")
         jzIp = result.size();
-        a.type = Bytecode::JNZ;
+        a.type = Arduino::JNZ;
         a.registerr = 0;
         result << a;
 
@@ -1987,26 +1989,26 @@ void Generator::LOOP(int modId, int algId,
         // Calculate 'from'-value
         result << calculate(modId, algId, level, st->loop.fromValue);
 
-        Bytecode::Instruction popFrom;
-        popFrom.type = Bytecode::POP;
+        Arduino::Instruction popFrom;
+        popFrom.type = Arduino::POP;
         popFrom.registerr = level * 5 - 2;
         result << popFrom;
 
-        Bytecode::Instruction pushFrom;
-        pushFrom.type = Bytecode::PUSH;
+        Arduino::Instruction pushFrom;
+        pushFrom.type = Arduino::PUSH;
         pushFrom.registerr = popFrom.registerr;
 
 
         // First time: Load 'to'-value and store it in register
         result << calculate(modId, algId, level, st->loop.toValue);
 
-        Bytecode::Instruction popTo;
-        popTo.type = Bytecode::POP;
+        Arduino::Instruction popTo;
+        popTo.type = Arduino::POP;
         popTo.registerr = level * 5 - 3;
         result << popTo;
 
-        Bytecode::Instruction pushTo;
-        pushTo.type = Bytecode::PUSH;
+        Arduino::Instruction pushTo;
+        pushTo.type = Arduino::PUSH;
         pushTo.registerr = popTo.registerr;
 
         // First time: Load 'step'-value and store it in register
@@ -2014,42 +2016,42 @@ void Generator::LOOP(int modId, int algId,
             result << calculate(modId, algId, level, st->loop.stepValue);
         }
         else {
-            Bytecode::Instruction loadOneStep;
-            loadOneStep.type = Bytecode::LOAD;
-            loadOneStep.scope = Bytecode::CONSTT;
+            Arduino::Instruction loadOneStep;
+            loadOneStep.type = Arduino::LOAD;
+            loadOneStep.scope = Arduino::CONSTT;
             loadOneStep.arg = constantValue(Bytecode::VT_int, 0, 1, QString(), QString());
             result << loadOneStep;
         }
 
-        Bytecode::Instruction popStep;
-        popStep.type = Bytecode::POP;
+        Arduino::Instruction popStep;
+        popStep.type = Arduino::POP;
         popStep.registerr = level * 5 - 4;
         result << popStep;
 
-        Bytecode::Instruction pushStep;
-        pushStep.type = Bytecode::PUSH;
+        Arduino::Instruction pushStep;
+        pushStep.type = Arduino::PUSH;
         pushStep.registerr = level * 5 - 4;
 
 
         // First time: decrease value by 'step', so in will
         // be increased in nearest future
 
-        Bytecode::Instruction subInitial;
-        subInitial.type = Bytecode::SUB;
+        Arduino::Instruction subInitial;
+        subInitial.type = Arduino::SUB;
         result << pushFrom << pushStep << subInitial;
 
-        Bytecode::Instruction popCurrent;
-        popCurrent.type = Bytecode::POP;
+        Arduino::Instruction popCurrent;
+        popCurrent.type = Arduino::POP;
         popCurrent.registerr = level * 5;
 
-        Bytecode::Instruction pushCurrent;
-        pushCurrent.type = Bytecode::PUSH;
+        Arduino::Instruction pushCurrent;
+        pushCurrent.type = Arduino::PUSH;
         pushCurrent.registerr = popCurrent.registerr;
 
         result << popCurrent;
 
-        Bytecode::Instruction popVoid;
-        popVoid.type = Bytecode::POP;
+        Arduino::Instruction popVoid;
+        popVoid.type = Arduino::POP;
         popVoid.registerr = 0;
 
         // Begin
@@ -2060,18 +2062,18 @@ void Generator::LOOP(int modId, int algId,
         result << pushStep << pushFrom << pushTo;
         //    b) calculate current value and store into variable
         result << pushCurrent << pushStep;
-        Bytecode::Instruction sum;
-        sum.type = Bytecode::SUM;
+        Arduino::Instruction sum;
+        sum.type = Arduino::SUM;
         result << sum;
         result << popCurrent << pushCurrent;
         //    c) check if variable in range
 
-        Bytecode::Instruction inRange;
-        inRange.type = Bytecode::INRANGE;
+        Arduino::Instruction inRange;
+        inRange.type = Arduino::INRANGE;
         result << inRange;
 
-        Bytecode::Instruction gotoEnd;
-        gotoEnd.type = Bytecode::JZ;
+        Arduino::Instruction gotoEnd;
+        gotoEnd.type = Arduino::JZ;
         gotoEnd.registerr = 0;
         jzIp = result.size();
         result << gotoEnd;
@@ -2085,13 +2087,13 @@ void Generator::LOOP(int modId, int algId,
         }
 
         // Set variable to current loop value
-        Bytecode::Instruction setVariableValue;
-        setVariableValue.type = Bytecode::STORE;
+        Arduino::Instruction setVariableValue;
+        setVariableValue.type = Arduino::STORE;
         findVariable(modId, algId, st->loop.forVariable, setVariableValue.scope, setVariableValue.arg);
         result << pushCurrent << setVariableValue << popVoid;
     }
 
-    QList<Bytecode::Instruction> instrs = instructions(modId, algId, level, st->loop.body);
+    QList<Arduino::Instruction> instrs = instructions(modId, algId, level, st->loop.body);
     shiftInstructions(instrs, result.size());
     result += instrs;
 
@@ -2099,9 +2101,9 @@ void Generator::LOOP(int modId, int algId,
     if (endsWithError) {
         const QString error = ErrorMessages::message("KumirAnalizer", QLocale::Russian, st->endBlockError);
         result += makeLineInstructions(st->loop.endLexems);
-        Bytecode::Instruction ee;
-        ee.type = Bytecode::ERRORR;
-        ee.scope = Bytecode::CONSTT;
+        Arduino::Instruction ee;
+        ee.type = Arduino::ERRORR;
+        ee.scope = Arduino::CONSTT;
         ee.arg = constantValue(Bytecode::VT_string, 0, error, QString(), QString());
         result << ee;
         return;
@@ -2111,11 +2113,11 @@ void Generator::LOOP(int modId, int algId,
 
     if (st->loop.endCondition) {
         result += makeLineInstructions(st->loop.endLexems);
-        QList<Bytecode::Instruction> endCondInstructions = calculate(modId, algId, level, st->loop.endCondition);
+        QList<Arduino::Instruction> endCondInstructions = calculate(modId, algId, level, st->loop.endCondition);
         shiftInstructions(endCondInstructions, result.size());
         result << endCondInstructions;
-        Bytecode::Instruction e;
-        e.type = Bytecode::POP;
+        Arduino::Instruction e;
+        e.type = Arduino::POP;
         e.registerr = 0;
         result << e;
         // Show counter value at margin
@@ -2125,7 +2127,7 @@ void Generator::LOOP(int modId, int algId,
             result << swreg;
         }
         endJzIp = result.size();
-        e.type = Bytecode::JNZ;
+        e.type = Arduino::JNZ;
         e.registerr = 0;
         result << e;
     }    
@@ -2139,8 +2141,8 @@ void Generator::LOOP(int modId, int algId,
 //    lineNo = st->loop.endLexems[0]->lineNo;
 //    l.arg = lineNo;
 //    result << l;
-    Bytecode::Instruction e;
-    e.type = Bytecode::JUMP;
+    Arduino::Instruction e;
+    e.type = Arduino::JUMP;
     e.registerr = 0;
     e.arg = beginIp;
     result << e;
@@ -2162,13 +2164,13 @@ void Generator::LOOP(int modId, int algId,
 
 }
 
-void Generator::setBreakAddress(QList<Bytecode::Instruction> &instrs,
+void Generator::setBreakAddress(QList<Arduino::Instruction> &instrs,
                                 int level,
                                 int address)
 {
     for (int i=0; i<instrs.size(); i++) {
         if (int(instrs[i].type)==127 && instrs[i].registerr==level) {
-            instrs[i].type = Bytecode::JUMP;
+            instrs[i].type = Arduino::JUMP;
             instrs[i].arg = address;
         }
     }

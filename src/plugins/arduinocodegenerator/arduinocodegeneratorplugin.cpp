@@ -3,20 +3,21 @@
 #include <cstdlib>
 #include <kumir2-libs/stdlib/kumirstdlib.hpp>
 #include <kumir2-libs/vm/variant.hpp>
-#include <kumir2-libs/vm/vm_bytecode.hpp>
+//#include <kumir2-libs/vm/vm_bytecode.hpp>
 #include "generator.h"
 #include "arduinocodegeneratorplugin.h"
 #include <kumir2-libs/extensionsystem/pluginmanager.h>
+#include "arduino_data.hpp"
 
 using namespace ArduinoCodeGenerator;
-using namespace Bytecode;
+using namespace Arduino;
 
 static const QString MIME_ARDUINO_C_SOURCE = QString::fromLatin1("text/plain");
 
 ArduinoCodeGeneratorPlugin::ArduinoCodeGeneratorPlugin()
     : KPlugin()
     , d(new Generator(this))
-    , textMode_(false)
+    , serialDebug_(false)
 {
 }
 
@@ -27,8 +28,8 @@ ArduinoCodeGeneratorPlugin::acceptableCommandLineParameters() const
     QList<CommandLineParameter> result;
     result << CommandLineParameter(
                   false,
-                  's', "assembly",
-                  tr("Generate bytecode assemby text instead of executable code")
+                  's', "serial",
+                  tr("Generate arduino with serial debug")
                   );
     result << CommandLineParameter(
                   false,
@@ -41,8 +42,8 @@ ArduinoCodeGeneratorPlugin::acceptableCommandLineParameters() const
 
 QString ArduinoCodeGeneratorPlugin::initialize(const QStringList &/*configurationArguments*/,
                                              const ExtensionSystem::CommandLine &runtimeArguments)
-{    
-    textMode_ = runtimeArguments.hasFlag('s');
+{
+    serialDebug_ = runtimeArguments.hasFlag('s');
     DebugLevel debugLevel = LinesOnly;
     if (runtimeArguments.value('g').isValid()) {
         int level = runtimeArguments.value('g').toInt();
@@ -56,7 +57,12 @@ QString ArduinoCodeGeneratorPlugin::initialize(const QStringList &/*configuratio
 
 void ArduinoCodeGeneratorPlugin::setOutputToText(bool flag)
 {
-    textMode_ = false;
+    textMode_ = true;
+}
+
+void ArduinoCodeGeneratorPlugin::setSerialDebug(bool flag)
+{
+    serialDebug_ = flag;
 }
 
 void ArduinoCodeGeneratorPlugin::createPluginSpec()
@@ -106,7 +112,7 @@ void ArduinoCodeGeneratorPlugin::generateExecutable(
         else {
             d->addModule(tree->modules[i]);
         }
-    }    
+    }
     linkedModule->impl.globals = userModule->impl.globals;
     linkedModule->impl.initializerBody = userModule->impl.initializerBody;
     linkedModule->impl.algorhitms = userModule->impl.algorhitms;
@@ -130,12 +136,12 @@ void ArduinoCodeGeneratorPlugin::generateExecutable(
     }
 
     data.versionMaj = 2;
-    data.versionMin = 0;
-    data.versionRel = 90;
+    data.versionMin = 1;
+    data.versionRel = 0;
     std::list<char> buffer;
 
     std::ostringstream stream;
-    Bytecode::bytecodeToTextStream(stream, data);
+    Arduino::bytecodeToTextStream(stream, data);
     const std::string text = stream.str();
     out = QByteArray(text.c_str(), text.size());
     mimeType = MIME_ARDUINO_C_SOURCE;

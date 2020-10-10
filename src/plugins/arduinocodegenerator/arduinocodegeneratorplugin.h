@@ -35,6 +35,7 @@ public:
                 );
 
     void setOutputToText(bool flag);
+    void setSerialDebug(bool flag);
     inline void setVerbose(bool) {}
     inline void setTemporaryDir(const QString &, bool ) {}
     inline void updateSettings(const QStringList &) {}
@@ -48,9 +49,7 @@ protected:
 private:
     class Generator * d;
     bool textMode_;
-
-
-
+    bool serialDebug_;
 };
 
 }
