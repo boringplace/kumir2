@@ -4,6 +4,7 @@ add_subdirectory(coregui)
 add_subdirectory(coursemanager)
 
 add_opt_subdirectory(arduinocodegenerator)
+add_opt_subdirectory(arduinocompilertool)
 add_opt_subdirectory(kumiranalizer)
 add_opt_subdirectory(kumircodegenerator)
 add_opt_subdirectory(kumircoderun)
