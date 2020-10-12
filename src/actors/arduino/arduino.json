@@ -1,5 +1,38 @@
 {
 	"name": { "ascii": "Arduino", "ru_RU": "Ардуино" },
 	"dynamic": { "methods": true },
-	"methods": []
+	"methods": [
+		{
+			"name": {"ascii": "digitalRead", "ru_RU": "цифрВвод" },
+			"async": false,
+			"returnType": "bool",
+			"arguments": [
+				{ "name": "pin", "baseType": "int"}
+			]
+		},
+		{
+			"name": {"ascii": "digitalWrite", "ru_RU": "цифрВывод" },
+			"async": false,
+			"arguments": [
+				{ "name": "pin", "baseType": "int"},
+				{ "name": "value", "baseType": "bool"}
+			]
+		},
+		{
+			"name": {"ascii": "analogRead", "ru_RU": "аналогВвод" },
+			"async": false,
+			"returnType": "int",
+			"arguments": [
+				{ "name": "pin", "baseType": "int"}
+			]
+		},
+		{
+			"name": {"ascii": "analogWrite", "ru_RU": "аналогВывод" },
+			"async": false,
+			"arguments": [
+				{ "name": "pin", "baseType": "int"},
+				{ "name": "value", "baseType": "int"}
+			]
+		}
+	]
 }

@@ -52,10 +52,6 @@ ArduinoModule::ArduinoModule(ExtensionSystem::KPlugin * parent)
 
 }
 
-
-
-
-
 /* public slot */ void ArduinoModule::reloadSettings(ExtensionSystem::SettingsPtr settings, const QStringList & keys)
 {
     // Updates setting on module load, workspace change or appliyng settings dialog.
@@ -71,8 +67,6 @@ ArduinoModule::ArduinoModule(ExtensionSystem::KPlugin * parent)
     // TODO implement me
 }
 
-
-
 /* public slot */ void ArduinoModule::terminateEvaluation()
 {
     // Called on program interrupt to ask long-running module's methods
@@ -80,6 +74,37 @@ ArduinoModule::ArduinoModule(ExtensionSystem::KPlugin * parent)
     // TODO implement me
 }
 
+/* public slot */ bool ArduinoModule::runDigitalRead(const int pin)
+{
+    /* алг лог цифрВвод(цел pin) */
+    // TODO implement me
+    Q_UNUSED(pin)  // Remove this line on implementation;
+    return false;
+}
+
+/* public slot */ void ArduinoModule::runDigitalWrite(const int pin, const bool value)
+{
+    /* алг цифрВывод(цел pin, лог value) */
+    // TODO implement me
+    Q_UNUSED(pin)  // Remove this line on implementation;
+    Q_UNUSED(value)  // Remove this line on implementation;
+}
+
+/* public slot */ int ArduinoModule::runAnalogRead(const int pin)
+{
+    /* алг цел аналогВвод(цел pin) */
+    // TODO implement me
+    Q_UNUSED(pin)  // Remove this line on implementation;
+    return 0;
+}
+
+/* public slot */ void ArduinoModule::runAnalogWrite(const int pin, const int value)
+{
+    /* алг аналогВывод(цел pin, цел value) */
+    // TODO implement me
+    Q_UNUSED(pin)  // Remove this line on implementation;
+    Q_UNUSED(value)  // Remove this line on implementation;
+}
 
 /* private */  Shared::ActorInterface::FunctionList ArduinoModule::dynamicFunctionList() const
 {

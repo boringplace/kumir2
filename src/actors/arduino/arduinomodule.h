@@ -32,7 +32,11 @@ public Q_SLOTS:
     void reset();
     void terminateEvaluation();
 
-
+    /* ======== ARDUINO METHODS ======== */
+    bool runDigitalRead(const int pin);
+    void runDigitalWrite(const int pin, const bool value);
+    int runAnalogRead(const int pin);
+    void runAnalogWrite(const int pin, const int value);
 
     /* ========= CLASS PRIVATE ========= */
 private:
