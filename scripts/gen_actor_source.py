@@ -982,6 +982,9 @@ class Module:
         self.methods = []
         for method in json_node["methods"]:
             self.methods.append(Method(method))
+        self.dynamic_methods = False
+        if "dynamic" in json_node and "methods" in json_node["dynamic"]:
+            self.dynamic_methods = json_node["dynamic"]["methods"]
         if "gui" in json_node:
             self.gui = Gui(json_node["gui"])
         else:
@@ -1631,9 +1634,21 @@ private:
         """ % (self.class_name, _add_indent(body))
 
     # noinspection PyPep8Naming
+    def dynamicFunctionListMethodImplementation(self):
+        return """
+    if (module_) {
+        %s * module = qobject_cast<%s*>(module_);
+        result module->dynamicFunctionList();
+    }
+        """ % (self._module.get_module_cpp_class_name(), self._module.get_module_cpp_class_name())
+
+    # noinspection PyPep8Naming
     def functionListCppImplementation(self):
         methods = self._module.methods
         body = ""
+        if self._module.dynamic_methods:
+            body += "\n/* Dynamic autoload methods from plugin */\n"
+            body += "result = module_->dynamicFunctionList();\n"
         for method in methods:
             assert isinstance(method, Method)
             body += "\n/* " + method.get_kumir_declaration() + " */\n"
@@ -2948,6 +2963,16 @@ class ModuleBaseCppClass(CppClassBase):
         """ % (self.class_name, self._module.get_plugin_cpp_class_name(), self._module.get_plugin_cpp_class_name())
 
     # noinspection PyPep8Naming
+    def dynamicFunctionListCppImplementation(self):
+        return """
+/* public virtual */ Shared::ActorInterface::FunctionList %s::dynamicFunctionList() const
+{
+    return Shared::ActorInterface::FunctionList();
+}
+        """ % self.class_name
+
+
+    # noinspection PyPep8Naming
     def initializeCppImplementation(self):
         """
         Pass initialization to module itself
@@ -3441,6 +3466,7 @@ $customTypeDeclarations
 
 // Kumir includes
 #include <kumir2-libs/extensionsystem/kplugin.h>
+#include <kumir2/actorinterface.h>
 
 // Qt includes
 #include <QtCore>

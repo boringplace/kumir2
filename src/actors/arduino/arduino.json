@@ -1,4 +1,5 @@
 {
 	"name": { "ascii": "Arduino", "ru_RU": "Ардуино" },
+	"dynamic": { "methods": true },
 	"methods": []
 }

@@ -1,16 +1,5 @@
-/*
-This file is generated, but you can safely change it
-until you run "gen_actor_source.py" with "--project" flag.
-
-Generated file is just a skeleton for module contents.
-You should change it corresponding to functionality.
-*/
-
 // Self include
 #include "arduinomodule.h"
-
-// Kumir includes
-#include <kumir2-libs/extensionsystem/kplugin.h>
 
 // Qt includes
 #include <QtCore>
@@ -91,6 +80,21 @@ ArduinoModule::ArduinoModule(ExtensionSystem::KPlugin * parent)
     // TODO implement me
 }
 
+
+/* private */  Shared::ActorInterface::FunctionList ArduinoModule::dynamicFunctionList() const
+{
+    Shared::ActorInterface::FunctionList result;
+
+//    /* алг функция */
+//    result.push_back(Shared::ActorInterface::Function());
+//    result.last().id = result.size() - 1;
+//    result.last().accessType = Shared::ActorInterface::PublicFunction;
+//    result.last().asciiName = QByteArray("function");
+//    result.last().localizedNames[QLocale::Russian] = QString::fromUtf8("функция");
+//    result.last().returnType = Shared::ActorInterface::Void;
+
+    return result;
+}
 
 
 } // namespace ActorArduino

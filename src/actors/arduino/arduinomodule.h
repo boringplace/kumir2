@@ -1,11 +1,3 @@
-/*
-This file is generated, but you can safely change it
-until you run "gen_actor_source.py" with "--project" flag.
-
-Generated file is just a skeleton for module contents.
-You should change it corresponding to functionality.
-*/
-
 #ifndef ARDUINOMODULE_H
 #define ARDUINOMODULE_H
 
@@ -43,14 +35,11 @@ public Q_SLOTS:
 
 
     /* ========= CLASS PRIVATE ========= */
-
-
-
-
-
+private:
+    Shared::ActorInterface::FunctionList dynamicFunctionList() const;
 
 };
-        
+
 
 } // namespace ActorArduino
 
