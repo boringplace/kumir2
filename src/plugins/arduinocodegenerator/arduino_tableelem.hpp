@@ -444,8 +444,8 @@ inline void tableElemFromBinaryStream(std::list<char> & ds, TableElem &e)
         }
     }
 }
-
-inline std::string elemTypeToString(ElemType t)
+*/
+inline std::string elemTypeToArduinoString(ElemType t)
 {
     if (t==Bytecode::EL_LOCAL)
         return ".local";
@@ -469,7 +469,7 @@ inline std::string elemTypeToString(ElemType t)
         return "";
     }
 }
-
+/*
 inline ElemType elemTypeFromString(const std::string &ss)
 {
     const std::string s = Kumir::Core::toLowerCase(ss);
@@ -596,7 +596,7 @@ inline std::string kindToString(ValueKind k)
         return "unknown";
     }
 }
-
+*/
 inline void replaceAll(String &str, const String & from, const String & to)
 {
     size_t fromSize = from.length();
@@ -617,7 +617,7 @@ inline String screenString(String s)
     replaceAll(s, Kumir::Core::fromAscii("\t"), Kumir::Core::fromAscii("\\t"));
     return s;
 }
-
+/*
 inline String unscreenString(String s)
 {
     replaceAll(s, Kumir::Core::fromAscii("\\n"), Kumir::Core::fromAscii("\n"));
@@ -688,14 +688,14 @@ inline std::string globalToTextStream(const TableElem & e)
     return os.str();
 }
 
-
+*/
 
 inline std::string functionToTextStream(const TableElem & e, const AS_Helpers & helpers)
 {
     std::ostringstream os;
     os.setf(std::ios::hex,std::ios::basefield);
     os.setf(std::ios::showbase);
-    os << elemTypeToString(e.type) << " ";
+    os << elemTypeToArduinoString(e.type) << " ";
     os << "module=" << int(e.module) << " id=" << e.id << " size=" << e.instructions.size();
     if (e.name.length()>0) {
         Kumir::EncodingError encodingError;
@@ -711,7 +711,7 @@ inline std::string functionToTextStream(const TableElem & e, const AS_Helpers & 
     }
     return os.str();
 }
-
+/*
 inline std::string externToTextStream(const TableElem & e)
 {
     std::ostringstream os;
@@ -738,7 +738,7 @@ inline void tableElemToTextStream(std::ostream &ts, const TableElem &e, const AS
     else if (e.type==Bytecode::EL_GLOBAL)
         ts << "globalToTextStream(e)";
     else
-        ts << "functionToTextStream(e, helpers)";
+        ts << functionToTextStream(e, helpers);
     ts << "\n";
 }
 
